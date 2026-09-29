@@ -73,6 +73,36 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 .top{background:#fff;border-radius:10px;padding:4px 12px;box-shadow:0 1px 2px rgba(16,24,40,.07)}
 .vacio{padding:40px 20px;text-align:center;color:#8b929c;line-height:1.5}
 .cargando{padding:40px;text-align:center;color:#8b929c}
+/* ---- pestanas ---- */
+.tabs{background:#fff;border-bottom:1px solid #e3e6ea;padding:0 13px;position:sticky;top:64px;z-index:40}
+.tab{background:transparent;border:0;border-bottom:3px solid transparent;padding:12px 2px;
+     margin-right:20px;font-size:14.5px;font-weight:600;color:#6b7280}
+.tab.on{color:#16191d;border-bottom-color:#1f2937}
+.panel-sec{display:none}
+.panel-sec.on{display:block}
+/* ---- equipo ---- */
+.card{background:#fff;border-radius:10px;padding:13px;margin-bottom:10px;
+      box-shadow:0 1px 2px rgba(16,24,40,.07)}
+.card h3{margin:0 0 3px;font-size:15px}
+.card .ayuda{color:#6b7280;font-size:13px;margin:0 0 12px;line-height:1.4}
+.card input{width:100%;padding:12px;font-size:16px;border:1px solid #d5d9df;
+            border-radius:8px;margin-bottom:9px;background:#fff}
+.card button{width:100%;padding:13px;border:0;border-radius:8px;background:#1f2937;
+             color:#fff;font-size:15px;font-weight:700}
+.persona{display:table;width:100%;padding:11px 0;border-bottom:1px solid #eceef1}
+.persona:last-child{border-bottom:0}
+.persona .a{display:table-cell;vertical-align:middle}
+.persona .b{display:table-cell;vertical-align:middle;text-align:right;width:104px}
+.rolx{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;
+      background:#eef0f3;color:#48505a;margin-left:5px;vertical-align:middle}
+.rolx.d{background:#1f2937;color:#fff}
+.sw{border:1px solid #d5d9df;background:#fff;border-radius:7px;padding:8px 11px;
+    font-size:12.5px;font-weight:600;color:#1f2937;width:auto}
+.sw.off{color:#b91c1c;border-color:#f0c8c8}
+.apagado .a{opacity:.5}
+.msg{padding:11px;border-radius:8px;margin-bottom:11px;font-size:14px;display:none;line-height:1.4}
+.msg.bien{background:#dcfce7;color:#065f2b}
+.msg.mal{background:#fee2e2;color:#991b1b}
 </style>
 </head>
 <body>
@@ -95,14 +125,52 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
       <div class="sal"><button class="salir" id="salir">Salir</button></div>
     </div>
   </header>
+  <div class="tabs">
+    <button class="tab on" data-sec="pedidos">Pedidos</button>
+    <button class="tab" data-sec="equipo" id="tabEquipo" style="display:none">Equipo</button>
+    <button class="tab" data-sec="cuenta">Mi cuenta</button>
+  </div>
+
   <div class="wrap">
-    <div class="chips" id="chips"></div>
-    <div class="tiles">
-      <div class="tile"><b id="t1">0</b><span>pedidos</span></div>
-      <div class="tile money"><b id="t2">$0</b><span>vendido</span></div>
-      <div class="tile"><b id="t3">0</b><span>tiendas</span></div>
+
+    <div class="panel-sec on" id="sec-pedidos">
+      <div class="chips" id="chips"></div>
+      <div class="tiles">
+        <div class="tile"><b id="t1">0</b><span>pedidos</span></div>
+        <div class="tile money"><b id="t2">$0</b><span>vendido</span></div>
+        <div class="tile"><b id="t3">0</b><span>tiendas</span></div>
+      </div>
+      <div id="cuerpo"><div class="cargando">Cargando&hellip;</div></div>
     </div>
-    <div id="cuerpo"><div class="cargando">Cargando&hellip;</div></div>
+
+    <div class="panel-sec" id="sec-equipo">
+      <h2>Dar de alta a alguien</h2>
+      <div class="card">
+        <div class="msg" id="mAlta"></div>
+        <p class="ayuda">El correo <b>no tiene que ser real</b>: es solo para entrar.
+          Sin espacios. Por ejemplo <b>jose@generaldistribution.app</b>.</p>
+        <input id="nNombre" placeholder="Nombre de la persona" autocomplete="off">
+        <input id="nEmail" placeholder="correo@generaldistribution.app" autocomplete="off">
+        <input id="nClave" placeholder="Contrase&ntilde;a temporal (m&iacute;nimo 8)" autocomplete="off">
+        <button id="btnAlta">Dar de alta</button>
+      </div>
+      <h2>Tu equipo</h2>
+      <div class="card" id="listaEquipo"><div class="cargando">Cargando&hellip;</div></div>
+      <p class="ayuda" style="padding:0 3px">Apagar a alguien le quita el acceso al instante,
+        <b>sin borrar nada</b> de lo que hizo. Se puede volver a prender cuando quieras.</p>
+    </div>
+
+    <div class="panel-sec" id="sec-cuenta">
+      <h2>Cambiar mi contrase&ntilde;a</h2>
+      <div class="card">
+        <div class="msg" id="mClave"></div>
+        <p class="ayuda">Si entraste con una contrase&ntilde;a temporal, c&aacute;mbiala aqu&iacute;.</p>
+        <input id="cl1" type="password" placeholder="Contrase&ntilde;a nueva (m&iacute;nimo 8)" autocomplete="new-password">
+        <input id="cl2" type="password" placeholder="Repite la contrase&ntilde;a nueva" autocomplete="new-password">
+        <button id="btnClave">Guardar la contrase&ntilde;a nueva</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -110,7 +178,7 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 /* JS a la antigua, igual que la app de pedidos. */
 var SB   = 'https://pwcpjaibjigqppyidtse.supabase.co';
 var KEY  = 'sb_publishable_n4vrzEbspo0D0OYvDge7qg_DvQ5X7J_';
-var tok = '', ref = '', dias = 7, PEDIDOS = [];
+var tok = '', ref = '', dias = 7, PEDIDOS = [], esDueno = false;
 
 function $(id){ return document.getElementById(id); }
 function money(n){ return '$' + (Math.round(n*100)/100).toFixed(2); }
@@ -166,11 +234,103 @@ function arranca(){
 }
 
 function quienSoy(){
-  req('GET', SB + '/rest/v1/gd_perfiles?select=nombre,rol', null, true,
+  req('GET', SB + '/rest/v1/gd_perfiles?select=nombre,rol&id=eq.' + miId(), null, true,
     function(d){
-      if(d && d.length) $('quien').innerHTML = d[0].nombre + (d[0].rol === 'dueno' ? '' : ' &middot; ' + d[0].rol);
+      if(d && d.length){
+        $('quien').innerHTML = d[0].nombre + (d[0].rol === 'dueno' ? '' : ' &middot; ' + d[0].rol);
+        esDueno = (d[0].rol === 'dueno');
+        $('tabEquipo').style.display = esDueno ? 'inline-block' : 'none';
+      }
     },
     function(){});
+}
+
+/* El id del usuario viene dentro del token, en su parte de en medio. */
+function miId(){
+  try {
+    var p = tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    while(p.length % 4) p += '=';
+    return JSON.parse(atob(p)).sub || '';
+  } catch(e){ return ''; }
+}
+
+function aviso(id, texto, bien){
+  var el = $(id);
+  el.innerHTML = texto;
+  el.className = 'msg ' + (bien ? 'bien' : 'mal');
+  el.style.display = 'block';
+}
+
+/* ---- equipo ---- */
+function cargaEquipo(){
+  req('GET', SB + '/rest/v1/gd_perfiles?select=id,nombre,email,rol,activo&order=creado_en', null, true,
+    function(d){
+      var h = '', i;
+      if(!d || !d.length){ $('listaEquipo').innerHTML = '<div class="cargando">Nadie todav&iacute;a.</div>'; return; }
+      for(i=0;i<d.length;i++){
+        var u = d[i];
+        h += '<div class="persona' + (u.activo ? '' : ' apagado') + '">';
+        h += '<div class="a"><b>' + u.nombre + '</b>';
+        h += '<span class="rolx' + (u.rol==='dueno'?' d':'') + '">' + (u.rol==='dueno'?'due&ntilde;o':'vendedor') + '</span>';
+        h += '<div class="meta">' + u.email + (u.activo ? '' : ' &middot; apagado') + '</div></div>';
+        h += '<div class="b">';
+        if(u.id !== miId()){
+          h += '<button class="sw' + (u.activo ? '' : ' off') + '" data-sw="' + u.id + '" data-val="' +
+               (u.activo ? '0' : '1') + '">' + (u.activo ? 'Apagar' : 'Prender') + '</button>';
+        } else { h += '<span class="art">t&uacute;</span>'; }
+        h += '</div></div>';
+      }
+      $('listaEquipo').innerHTML = h;
+    },
+    function(st){
+      if(st === 401){ refresca(cargaEquipo, salir); return; }
+      $('listaEquipo').innerHTML = '<div class="cargando">No se pudo cargar el equipo.</div>';
+    });
+}
+
+function prendeApaga(id, val){
+  var x = new XMLHttpRequest();
+  x.open('PATCH', SB + '/rest/v1/gd_perfiles?id=eq.' + id, true);
+  x.setRequestHeader('apikey', KEY);
+  x.setRequestHeader('Authorization', 'Bearer ' + tok);
+  x.setRequestHeader('Content-Type', 'application/json');
+  x.onreadystatechange = function(){ if(x.readyState === 4) cargaEquipo(); };
+  x.send(JSON.stringify({activo: val === '1'}));
+}
+
+function daDeAlta(){
+  var n = $('nNombre').value, e = $('nEmail').value, c = $('nClave').value;
+  if(!n || !e || !c){ aviso('mAlta', 'Llena los tres campos.', false); return; }
+  req('POST', SB + '/functions/v1/gd-crear-usuario', {nombre:n, email:e, clave:c}, true,
+    function(){
+      aviso('mAlta', '&#10003; <b>' + n + '</b> ya puede entrar. P&aacute;sale el correo y la contrase&ntilde;a que le pusiste, y que la cambie.', true);
+      $('nNombre').value = ''; $('nEmail').value = ''; $('nClave').value = '';
+      cargaEquipo();
+    },
+    function(st, d){
+      if(st === 401){ refresca(daDeAlta, salir); return; }
+      aviso('mAlta', (d && d.error) ? d.error : 'No se pudo dar de alta.', false);
+    });
+}
+
+function cambiaClave(){
+  var a = $('cl1').value, b = $('cl2').value;
+  if(a.length < 8){ aviso('mClave', 'La contrase&ntilde;a debe tener al menos 8 letras o n&uacute;meros.', false); return; }
+  if(a !== b){ aviso('mClave', 'Las dos contrase&ntilde;as no son iguales.', false); return; }
+  var x = new XMLHttpRequest();
+  x.open('PUT', SB + '/auth/v1/user', true);
+  x.setRequestHeader('apikey', KEY);
+  x.setRequestHeader('Authorization', 'Bearer ' + tok);
+  x.setRequestHeader('Content-Type', 'application/json');
+  x.onreadystatechange = function(){
+    if(x.readyState !== 4) return;
+    if(x.status >= 200 && x.status < 300){
+      aviso('mClave', '&#10003; Listo. La pr&oacute;xima vez entra con la nueva.', true);
+      $('cl1').value = ''; $('cl2').value = '';
+    } else if(x.status === 401){ refresca(cambiaClave, salir); }
+    else { aviso('mClave', 'No se pudo cambiar. Intenta otra vez.', false); }
+  };
+  x.send(JSON.stringify({password: a}));
 }
 
 function desde(){
@@ -287,10 +447,27 @@ document.addEventListener('click', function(e){
         L.className = (L.className.indexOf('on') >= 0) ? 'lineas' : 'lineas on';
         return;
       }
+      var sec = el.getAttribute('data-sec');
+      if(sec){
+        var ts = document.getElementsByClassName('tab'), i;
+        for(i=0;i<ts.length;i++) ts[i].className = 'tab';
+        el.className = 'tab on';
+        var ss = document.getElementsByClassName('panel-sec');
+        for(i=0;i<ss.length;i++) ss[i].className = 'panel-sec';
+        $('sec-' + sec).className = 'panel-sec on';
+        if(sec === 'equipo') cargaEquipo();
+        window.scrollTo(0,0);
+        return;
+      }
+      var sw = el.getAttribute('data-sw');
+      if(sw){ prendeApaga(sw, el.getAttribute('data-val')); return; }
     }
     el = el.parentNode;
   }
 }, false);
+
+$('btnAlta').onclick = daDeAlta;
+$('btnClave').onclick = cambiaClave;
 
 $('entrar').onclick = function(){
   var e = $('email').value, p = $('pass').value;
