@@ -109,8 +109,9 @@ var WHATSAPP = '18018986304';
 La función `gd-crear-usuario` es la que deja que Manuel dé de alta a su gente **sin tener
 la llave maestra en el teléfono**. Hay que desplegarla en su proyecto nuevo.
 
-Su Claude Code puede hacerlo si le conecta el MCP de Supabase. El código de la función
-está en el historial de este repositorio y en las notas de María.
+El código completo está en **`herramientas/gd-crear-usuario.ts`**, en este mismo
+repositorio, con las instrucciones en `herramientas/LEEME.md`. Su Claude Code puede
+desplegarlo si le conecta el MCP de Supabase.
 
 ## Paso 7 — Su cuenta de dueño
 

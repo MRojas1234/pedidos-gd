@@ -109,6 +109,20 @@ correo al dueño de la tienda en vez de descargarlo.
 
 ---
 
+## El molde está en `herramientas/`
+
+La app **no se edita a mano**: `index.html` lo escribe un programa a partir del catálogo.
+Si editas el HTML directo, el siguiente que regenere lo borra todo.
+
+| Archivo | Qué es |
+|---|---|
+| `herramientas/generar-app.py` | Arma `index.html` desde el catálogo |
+| `herramientas/catalogo-shopify-2026-09-28.json` | Los 551 productos, crudos |
+| `herramientas/gd-crear-usuario.ts` | El código de la función de servidor |
+| `herramientas/LEEME.md` | Cómo actualizar el catálogo y volver a subir la función |
+
+`panel.html` sí se edita a mano: ése no se genera.
+
 ## Las reglas de la casa
 
 1. **Verifica la salida, no la bandera.** Los sistemas dicen "hecho" y mienten. Cuenta el
