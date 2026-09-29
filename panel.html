@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel &middot; General Distribution</title>
+<link rel="icon" href="logo-gd.png">
+<link rel="apple-touch-icon" href="logo-gd.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Panel GD">
+<meta name="theme-color" content="#1f2937">
+<meta name="robots" content="noindex">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+     background:#f4f5f7;color:#16191d;font-size:15px}
+header{background:#1f2937;color:#fff;padding:11px 13px;position:sticky;top:0;z-index:50}
+.hd{display:table;width:100%}
+.hd .lg{display:table-cell;width:46px;vertical-align:middle}
+.hd .lg img{width:42px;height:42px;display:block;border-radius:50%}
+.hd .tx{display:table-cell;vertical-align:middle;padding-left:10px}
+.hd .sal{display:table-cell;vertical-align:middle;text-align:right;width:76px}
+.brand{font-weight:700;font-size:17px;line-height:1.15}
+.sub{opacity:.6;font-size:12.5px}
+.salir{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;
+       border-radius:7px;padding:7px 10px;font-size:12.5px}
+.wrap{max-width:820px;margin:0 auto;padding:13px}
+/* ---- entrar ---- */
+.login{max-width:380px;margin:9vh auto;padding:0 18px;text-align:center}
+.login img{width:96px;height:96px;border-radius:50%;margin-bottom:14px}
+.login h1{font-size:20px;margin:0 0 4px}
+.login p{color:#6b7280;margin:0 0 20px;font-size:14px}
+.login input{width:100%;padding:13px;font-size:16px;border:1px solid #d5d9df;
+             border-radius:9px;margin-bottom:10px;background:#fff}
+.login button{width:100%;padding:14px;border:0;border-radius:9px;background:#1f2937;
+              color:#fff;font-size:16px;font-weight:700}
+.err{background:#fee2e2;color:#991b1b;padding:11px;border-radius:8px;margin-bottom:11px;
+     font-size:14px;display:none;text-align:left;line-height:1.35}
+/* ---- resumen ---- */
+.tiles{display:table;width:100%;table-layout:fixed;border-spacing:7px 0;margin:0 -7px 5px}
+.tile{display:table-cell;background:#fff;border-radius:10px;padding:12px 11px;
+      box-shadow:0 1px 2px rgba(16,24,40,.07)}
+.tile b{display:block;font-size:22px;line-height:1.1}
+.tile span{color:#6b7280;font-size:12px}
+.tile.money b{color:#0f7b3f}
+.chips{white-space:nowrap;overflow-x:auto;padding:11px 0 4px}
+.chip{display:inline-block;padding:8px 14px;margin-right:6px;border-radius:999px;
+      background:#eef0f3;color:#48505a;font-size:13px;font-weight:600;border:0}
+.chip.on{background:#1f2937;color:#fff}
+/* ---- pedidos ---- */
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
+   margin:20px 0 8px;font-weight:700}
+.ped{background:#fff;border-radius:10px;margin-bottom:8px;box-shadow:0 1px 2px rgba(16,24,40,.07);
+     overflow:hidden}
+.pc{padding:11px 12px;display:table;width:100%}
+.pc .a{display:table-cell;vertical-align:middle}
+.pc .b{display:table-cell;vertical-align:middle;text-align:right;width:112px;white-space:nowrap}
+.tienda{font-weight:700;line-height:1.2}
+.meta{color:#6b7280;font-size:12.5px;margin-top:3px}
+.tot{font-weight:700;color:#0f7b3f;font-size:16px}
+.art{color:#6b7280;font-size:12px}
+.lineas{border-top:1px solid #eceef1;padding:4px 12px 10px;display:none;background:#fafbfc}
+.lineas.on{display:block}
+.ln{padding:7px 0;border-bottom:1px solid #eceef1;display:table;width:100%;font-size:14px}
+.ln:last-child{border-bottom:0}
+.ln .a{display:table-cell}
+.ln .b{display:table-cell;text-align:right;width:92px;white-space:nowrap;color:#6b7280;font-size:13px}
+.cant{display:inline-block;min-width:26px;font-weight:700}
+.nota{background:#fffbeb;border-left:3px solid #fbbf24;padding:7px 9px;margin:7px 0;
+      font-size:13px;border-radius:0 6px 6px 0}
+/* ---- top productos ---- */
+.top{background:#fff;border-radius:10px;padding:4px 12px;box-shadow:0 1px 2px rgba(16,24,40,.07)}
+.vacio{padding:40px 20px;text-align:center;color:#8b929c;line-height:1.5}
+.cargando{padding:40px;text-align:center;color:#8b929c}
+</style>
+</head>
+<body>
+
+<div id="login" class="login">
+  <img src="logo-gd.png" alt="">
+  <h1>Panel de pedidos</h1>
+  <p>General Distribution</p>
+  <div class="err" id="err"></div>
+  <input id="email" type="email" placeholder="Correo" autocomplete="username">
+  <input id="pass" type="password" placeholder="Contrase&ntilde;a" autocomplete="current-password">
+  <button id="entrar">Entrar</button>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <div class="hd">
+      <div class="lg"><img src="logo-gd.png" alt=""></div>
+      <div class="tx"><div class="brand">Panel de pedidos</div><div class="sub" id="quien"></div></div>
+      <div class="sal"><button class="salir" id="salir">Salir</button></div>
+    </div>
+  </header>
+  <div class="wrap">
+    <div class="chips" id="chips"></div>
+    <div class="tiles">
+      <div class="tile"><b id="t1">0</b><span>pedidos</span></div>
+      <div class="tile money"><b id="t2">$0</b><span>vendido</span></div>
+      <div class="tile"><b id="t3">0</b><span>tiendas</span></div>
+    </div>
+    <div id="cuerpo"><div class="cargando">Cargando&hellip;</div></div>
+  </div>
+</div>
+
+<script>
+/* JS a la antigua, igual que la app de pedidos. */
+var SB   = 'https://pwcpjaibjigqppyidtse.supabase.co';
+var KEY  = 'sb_publishable_n4vrzEbspo0D0OYvDge7qg_DvQ5X7J_';
+var tok = '', ref = '', dias = 7, PEDIDOS = [];
+
+function $(id){ return document.getElementById(id); }
+function money(n){ return '$' + (Math.round(n*100)/100).toFixed(2); }
+function guarda(){ try{ localStorage.setItem('gdp_tok',tok); localStorage.setItem('gdp_ref',ref); }catch(e){} }
+function olvida(){ try{ localStorage.removeItem('gdp_tok'); localStorage.removeItem('gdp_ref'); }catch(e){} }
+
+function req(metodo, url, cuerpo, conSesion, ok, falla){
+  var x = new XMLHttpRequest();
+  x.open(metodo, url, true);
+  x.setRequestHeader('apikey', KEY);
+  x.setRequestHeader('Content-Type', 'application/json');
+  if(conSesion) x.setRequestHeader('Authorization', 'Bearer ' + tok);
+  x.onreadystatechange = function(){
+    if(x.readyState !== 4) return;
+    var d = null;
+    try { d = x.responseText ? JSON.parse(x.responseText) : null; } catch(e){}
+    if(x.status >= 200 && x.status < 300) ok(d); else falla(x.status, d);
+  };
+  try { x.send(cuerpo ? JSON.stringify(cuerpo) : null); } catch(e){ falla(0, null); }
+}
+
+function entrar(email, pass){
+  $('err').style.display = 'none';
+  req('POST', SB + '/auth/v1/token?grant_type=password', {email:email, password:pass}, false,
+    function(d){ tok = d.access_token; ref = d.refresh_token; guarda(); arranca(); },
+    function(st, d){
+      var m = 'No se pudo entrar.';
+      if(st === 400) m = 'Correo o contrase&ntilde;a incorrectos.';
+      if(st === 0)   m = 'Sin conexi&oacute;n. Revisa tu internet.';
+      if(d && d.error_description) m += ' <br><small>' + d.error_description + '</small>';
+      $('err').innerHTML = m; $('err').style.display = 'block';
+    });
+}
+
+function refresca(ok, falla){
+  if(!ref){ falla(); return; }
+  req('POST', SB + '/auth/v1/token?grant_type=refresh_token', {refresh_token:ref}, false,
+    function(d){ tok = d.access_token; ref = d.refresh_token; guarda(); ok(); },
+    function(){ falla(); });
+}
+
+function salir(){
+  tok = ''; ref = ''; olvida();
+  $('app').style.display = 'none'; $('login').style.display = 'block';
+  $('pass').value = '';
+}
+
+function arranca(){
+  $('login').style.display = 'none';
+  $('app').style.display = 'block';
+  quienSoy();
+  carga();
+}
+
+function quienSoy(){
+  req('GET', SB + '/rest/v1/gd_perfiles?select=nombre,rol', null, true,
+    function(d){
+      if(d && d.length) $('quien').innerHTML = d[0].nombre + (d[0].rol === 'dueno' ? '' : ' &middot; ' + d[0].rol);
+    },
+    function(){});
+}
+
+function desde(){
+  if(dias === 0) return null;
+  var d = new Date();
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - (dias - 1));
+  return d.toISOString();
+}
+
+function carga(){
+  $('cuerpo').innerHTML = '<div class="cargando">Cargando&hellip;</div>';
+  var u = SB + '/rest/v1/gd_pedidos?select=folio,tienda,nota,articulos,total,creado,gd_pedido_lineas(producto,categoria,precio,cantidad,importe)'
+        + '&es_prueba=eq.false&order=creado.desc&limit=300';
+  var d = desde();
+  if(d) u += '&creado=gte.' + encodeURIComponent(d);
+  req('GET', u, null, true,
+    function(datos){ PEDIDOS = datos || []; pinta(); },
+    function(st){
+      if(st === 401){ refresca(carga, salir); return; }
+      $('cuerpo').innerHTML = '<div class="vacio">No se pudieron cargar los pedidos.<br>Revisa tu internet y vuelve a entrar.</div>';
+    });
+}
+
+function chips(){
+  var ops = [[1,'Hoy'],[7,'7 d&iacute;as'],[30,'30 d&iacute;as'],[0,'Todo']], h = '', i;
+  for(i=0;i<ops.length;i++){
+    h += '<button class="chip' + (dias===ops[i][0]?' on':'') + '" data-d="' + ops[i][0] + '">' + ops[i][1] + '</button>';
+  }
+  $('chips').innerHTML = h;
+}
+
+function fecha(iso){
+  var d = new Date(iso);
+  var hh = d.getHours(), m = d.getMinutes(), ap = hh >= 12 ? 'pm' : 'am';
+  hh = hh % 12; if(hh === 0) hh = 12;
+  return d.getDate() + '/' + (d.getMonth()+1) + '/' + d.getFullYear() +
+         ' &middot; ' + hh + ':' + (m<10?'0':'') + m + ' ' + ap;
+}
+
+function pinta(){
+  var i, j, nTot = 0, dinero = 0, tiendas = {}, h = '';
+  for(i=0;i<PEDIDOS.length;i++){
+    nTot++; dinero += parseFloat(PEDIDOS[i].total) || 0;
+    tiendas[PEDIDOS[i].tienda] = 1;
+  }
+  var nt = 0; for(var k in tiendas){ if(tiendas.hasOwnProperty(k)) nt++; }
+  $('t1').innerHTML = nTot;
+  $('t2').innerHTML = money(dinero);
+  $('t3').innerHTML = nt;
+
+  if(!PEDIDOS.length){
+    $('cuerpo').innerHTML = '<div class="vacio">Todav&iacute;a no hay pedidos en este periodo.<br>' +
+      'En cuanto alguien mande uno desde la app, aparece aqu&iacute;.</div>';
+    return;
+  }
+
+  /* --- lo que mas piden --- */
+  var acum = {}, key;
+  for(i=0;i<PEDIDOS.length;i++){
+    var ls = PEDIDOS[i].gd_pedido_lineas || [];
+    for(j=0;j<ls.length;j++){
+      key = ls[j].producto;
+      if(!acum[key]) acum[key] = {p:key, c:0, imp:0};
+      acum[key].c   += ls[j].cantidad;
+      acum[key].imp += parseFloat(ls[j].importe) || 0;
+    }
+  }
+  var top = [];
+  for(key in acum){ if(acum.hasOwnProperty(key)) top.push(acum[key]); }
+  top.sort(function(a,b){ return b.c - a.c; });
+
+  h += '<h2>Pedidos</h2>';
+  for(i=0;i<PEDIDOS.length;i++){
+    var p = PEDIDOS[i];
+    h += '<div class="ped"><div class="pc" data-abre="' + i + '">';
+    h += '<div class="a"><div class="tienda">' + p.tienda + '</div>';
+    h += '<div class="meta">Folio ' + p.folio + ' &middot; ' + fecha(p.creado) + '</div></div>';
+    h += '<div class="b"><div class="tot">' + money(p.total) + '</div>';
+    h += '<div class="art">' + p.articulos + (p.articulos===1?' art&iacute;culo':' art&iacute;culos') + '</div></div>';
+    h += '</div><div class="lineas" id="l' + i + '">';
+    if(p.nota) h += '<div class="nota"><b>Nota:</b> ' + p.nota + '</div>';
+    var ls2 = p.gd_pedido_lineas || [];
+    for(j=0;j<ls2.length;j++){
+      h += '<div class="ln"><div class="a"><span class="cant">' + ls2[j].cantidad + '&times;</span> ' + ls2[j].producto + '</div>';
+      h += '<div class="b">' + money(ls2[j].importe) + '</div></div>';
+    }
+    if(!ls2.length) h += '<div class="ln"><div class="a">Este pedido no trae renglones.</div><div class="b"></div></div>';
+    h += '</div></div>';
+  }
+
+  if(top.length){
+    h += '<h2>Lo que m&aacute;s piden</h2><div class="top">';
+    for(i=0;i<Math.min(top.length,15);i++){
+      h += '<div class="ln"><div class="a"><span class="cant">' + top[i].c + '</span> ' + top[i].p + '</div>';
+      h += '<div class="b">' + money(top[i].imp) + '</div></div>';
+    }
+    h += '</div>';
+  }
+  $('cuerpo').innerHTML = h;
+}
+
+/* ---- eventos ---- */
+document.addEventListener('click', function(e){
+  var el = e.target;
+  while(el && el !== document.body){
+    if(el.getAttribute){
+      var d = el.getAttribute('data-d'), a = el.getAttribute('data-abre');
+      if(d !== null && d !== undefined && el.className.indexOf('chip') >= 0){
+        dias = parseInt(d, 10); chips(); carga(); return;
+      }
+      if(a !== null && a !== undefined){
+        var L = $('l' + a);
+        L.className = (L.className.indexOf('on') >= 0) ? 'lineas' : 'lineas on';
+        return;
+      }
+    }
+    el = el.parentNode;
+  }
+}, false);
+
+$('entrar').onclick = function(){
+  var e = $('email').value, p = $('pass').value;
+  if(!e || !p){ $('err').innerHTML = 'Escribe tu correo y tu contrase&ntilde;a.'; $('err').style.display='block'; return; }
+  entrar(e, p);
+};
+$('pass').onkeyup = function(ev){ if(ev.keyCode === 13) $('entrar').onclick(); };
+$('salir').onclick = salir;
+
+/* ---- al abrir: si ya habia sesion guardada, entra solo ---- */
+chips();
+try { tok = localStorage.getItem('gdp_tok') || ''; ref = localStorage.getItem('gdp_ref') || ''; } catch(e){}
+if(tok){ arranca(); }
+</script>
+</body>
+</html>
