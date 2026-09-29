@@ -181,7 +181,7 @@ function render(){
     out.push(p);
   }
   shown = out;
-  document.getElementById('count').innerHTML = out.length + ' productos' + (cat ? ' en ' + cat : '');
+  document.getElementById('count').innerHTML = out.length + (out.length===1 ? ' producto' : ' productos') + (cat ? ' en ' + cat : '');
   var lim = Math.min(out.length, 200), h = '';
   for(i=0;i<lim;i++){
     p = out[i];
