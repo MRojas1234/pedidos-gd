@@ -41,7 +41,7 @@ header{background:#1f2937;color:#fff;padding:10px 12px;position:sticky;top:0;z-i
 .cell{display:table-cell;vertical-align:middle}
 .ph{width:68px}
 .ph img{width:60px;height:60px;object-fit:contain;border-radius:6px;background:#f4f5f7;display:block}
-.noimg{width:60px;height:60px;border-radius:6px;background:#f0f1f3;display:block}
+.noimg{width:60px;height:60px;border-radius:6px;background:#eef0f3;display:block;text-align:center;line-height:60px;font-size:24px;font-weight:700;color:#aeb4bc}
 .info{padding:0 8px}
 .name{font-weight:600;line-height:1.25;font-size:14px}
 .meta{color:#6b7280;font-size:12px;margin-top:3px}
@@ -238,6 +238,69 @@ function param(n){
 
 /* El link de cada tienda la identifica sola. Antes se escribia a mano y ya
    habia pedidos con el nombre machucado que nadie supo de quien eran. */
+/* ---------------------------------------------------------------
+   EL CATALOGO VIVO
+   El que viene dentro del archivo es la red de seguridad: sirve al
+   instante y sin senal. En cuanto hay internet se trae el de la base,
+   que es el que Manuel edita y el que trae los precios de QuickBooks.
+   --------------------------------------------------------------- */
+function guardaCatalogo(lista){
+  try { localStorage.setItem('gd_cat', JSON.stringify(lista)); } catch(e){}
+}
+function catalogoGuardado(){
+  try {
+    var c = JSON.parse(localStorage.getItem('gd_cat') || 'null');
+    return (c && c.length) ? c : null;
+  } catch(e){ return null; }
+}
+function hayAlgoEnElCarrito(){
+  for(var k in cart){ if(cart.hasOwnProperty(k) && cart[k] > 0) return true; }
+  return false;
+}
+function ponCatalogo(lista){
+  /* Nunca se cambia el catalogo con un pedido a medias: los renglones
+     se quedarian huerfanos sin que nadie se entere. Se cambia a la proxima. */
+  if(hayAlgoEnElCarrito()) return;
+  P = lista;
+  var c = {}, i;
+  for(i=0;i<P.length;i++){ c[P[i].c] = (c[P[i].c] || 0) + 1; }
+  var orden = [];
+  for(var k in c){ if(c.hasOwnProperty(k)) orden.push([k, c[k]]); }
+  orden.sort(function(a,b){ return b[1] - a[1]; });
+  CATS = [];
+  for(i=0;i<orden.length;i++) CATS.push(orden[i][0]);
+  chips(); render();
+}
+/* La base no entrega mas de 1000 renglones de un jalon: se pide por tandas. */
+function traeCatalogo(){
+  var guardado = catalogoGuardado();
+  if(guardado) ponCatalogo(guardado);
+  var junta = [];
+  function tanda(desde){
+    var x = new XMLHttpRequest();
+    x.open('GET', SB_URL + '/gd_catalogo?select=id,nombre,categoria,precio,foto' +
+                  '&order=nombre.asc&limit=1000&offset=' + desde, true);
+    x.setRequestHeader('apikey', SB_KEY);
+    x.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
+    x.onreadystatechange = function(){
+      if(x.readyState !== 4) return;
+      if(x.status < 200 || x.status >= 300) return;
+      var d = null;
+      try { d = JSON.parse(x.responseText); } catch(e){ return; }
+      if(!d) return;
+      var i;
+      for(i=0;i<d.length;i++){
+        junta.push({ i:d[i].id, t:d[i].nombre, p:(d[i].precio || 0),
+                     c:(d[i].categoria || 'Otros'), f:(d[i].foto || ''), d:1 });
+      }
+      if(d.length === 1000){ tanda(desde + 1000); return; }   /* viene otra tanda */
+      if(junta.length){ guardaCatalogo(junta); ponCatalogo(junta); }
+    };
+    try { x.send(null); } catch(e){}
+  }
+  tanda(0);
+}
+
 function cargaTienda(){
   var c = param('t');
   if(!c) return;
@@ -327,7 +390,8 @@ function render(){
     p = out[i];
     var n = cart[p.i] || 0;
     h += '<div class="card' + (n>0?' sel':'') + '" id="c' + p.i + '">';
-    h += '<div class="cell ph">' + (p.f ? '<img src="' + p.f + '" loading="lazy" alt="">' : '<span class="noimg"></span>') + '</div>';
+    h += '<div class="cell ph">' + (p.f ? '<img src="' + p.f + '" loading="lazy" alt="">' :
+         '<span class="noimg">' + (p.t ? p.t.charAt(0).toUpperCase() : '?') + '</span>') + '</div>';
     h += '<div class="cell info"><div class="name">' + p.t + '</div>';
     h += '<div class="meta">' + p.c + (p.d ? '' : ' &middot; <span class="agot">AGOTADO</span>') + '</div>';
     h += p.p > 0 ? '<div class="price">' + money(p.p) + '</div>' : '<div class="nop">Precio por confirmar</div>';
@@ -462,6 +526,7 @@ document.getElementById('cl').onclick = function(){
   }
 };
 load(); chips(); render(); paintBar(); pintaPend(); vaciarCola(); cargaTienda();
+traeCatalogo();
 </script>
 </body>
 </html>
