@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Panel &middot; General Distribution</title>
-<link rel="icon" href="logo-gd.png">
-<link rel="apple-touch-icon" href="logo-gd.png">
+<link rel="icon" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Panel GD">
 <meta name="theme-color" content="#1f2937">
@@ -103,12 +103,36 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 .msg{padding:11px;border-radius:8px;margin-bottom:11px;font-size:14px;display:none;line-height:1.4}
 .msg.bien{background:#dcfce7;color:#065f2b}
 .msg.mal{background:#fee2e2;color:#991b1b}
+/* ---- tiendas ---- */
+.ruta{margin:18px 0 8px;font-size:13px;font-weight:700;color:#16191d;
+      display:table;width:100%}
+.ruta .r{display:table-cell;text-align:right;font-weight:600;font-size:12px}
+.lnk{background:#f4f5f7;border:1px solid #e3e6ea;border-radius:7px;padding:7px 9px;
+     font-size:11.5px;color:#48505a;word-break:break-all;margin-top:6px;line-height:1.35}
+.card button.mini, button.mini{border:1px solid #d5d9df;background:#fff;border-radius:7px;
+      padding:8px 12px;font-size:12.5px;font-weight:600;color:#1f2937;
+      width:auto;display:inline-block;margin:7px 6px 0 0}
+.card button.mini.p, button.mini.p{background:#1f2937;color:#fff;border-color:#1f2937}
+.ojo{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;
+     background:#fef3c7;color:#7c4a03;margin-left:5px;vertical-align:middle}
+/* ---- productos ---- */
+.pr{background:#fff;border-radius:10px;margin-bottom:8px;padding:9px;display:table;width:100%;
+    box-shadow:0 1px 2px rgba(16,24,40,.07)}
+.pr .im{display:table-cell;width:60px;vertical-align:middle}
+.pr .im img{width:52px;height:52px;object-fit:contain;border-radius:6px;background:#f4f5f7;display:block}
+.pr .nf{display:table-cell;vertical-align:middle;padding:0 8px}
+.pr .ex{display:table-cell;vertical-align:middle;text-align:right;width:86px;white-space:nowrap}
+.ex b{font-size:17px;display:block;line-height:1.1}
+.ex.ok b{color:#0f7b3f}
+.ex.cero b{color:#6b7280}
+.ex.neg b{color:#b91c1c}
+.upc{font-size:11px;color:#8b929c;font-family:ui-monospace,Menlo,Consolas,monospace}
 </style>
 </head>
 <body>
 
 <div id="login" class="login">
-  <img src="logo-gd.png" alt="">
+  <img src="logo.png" alt="">
   <h1>Panel de pedidos</h1>
   <p>General Distribution</p>
   <div class="err" id="err"></div>
@@ -120,13 +144,15 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 <div id="app" style="display:none">
   <header>
     <div class="hd">
-      <div class="lg"><img src="logo-gd.png" alt=""></div>
+      <div class="lg"><img src="logo.png" alt=""></div>
       <div class="tx"><div class="brand">Panel de pedidos</div><div class="sub" id="quien"></div></div>
       <div class="sal"><button class="salir" id="salir">Salir</button></div>
     </div>
   </header>
   <div class="tabs">
     <button class="tab on" data-sec="pedidos">Pedidos</button>
+    <button class="tab" data-sec="tiendas">Tiendas</button>
+    <button class="tab" data-sec="productos">Productos</button>
     <button class="tab" data-sec="equipo" id="tabEquipo" style="display:none">Equipo</button>
     <button class="tab" data-sec="cuenta">Mi cuenta</button>
   </div>
@@ -143,14 +169,47 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
       <div id="cuerpo"><div class="cargando">Cargando&hellip;</div></div>
     </div>
 
+    <div class="panel-sec" id="sec-tiendas">
+      <div class="msg" id="mTienda"></div>
+      <h2>Los links para mandar</h2>
+      <p class="ayuda" style="padding:0 3px;margin-top:-2px">Cada tienda tiene su propio link.
+        Al abrirlo, el nombre <b>ya viene puesto</b> y el pedido te llega amarrado a ella:
+        nadie lo escribe a mano.</p>
+      <div id="listaTiendas"><div class="cargando">Cargando&hellip;</div></div>
+
+      <h2>Agregar una tienda</h2>
+      <div class="card">
+        <p class="ayuda">El <b>c&oacute;digo</b> es lo que va en el link. Corto, sin espacios
+          ni acentos. Por ejemplo <b>lapalma</b>.</p>
+        <input id="tNombre" placeholder="Nombre de la tienda" autocomplete="off">
+        <input id="tCodigo" placeholder="C&oacute;digo para el link" autocomplete="off">
+        <input id="tRuta"   placeholder="Ruta (Colorado, Utah, Idaho...)" autocomplete="off">
+        <input id="tCiudad" placeholder="Ciudad" autocomplete="off">
+        <button id="btnTienda">Agregar tienda</button>
+      </div>
+    </div>
+
+    <div class="panel-sec" id="sec-productos">
+      <div class="msg" id="mProd"></div>
+      <div class="tiles">
+        <div class="tile"><b id="p1">0</b><span>productos</span></div>
+        <div class="tile"><b id="p2">0</b><span>sin existencia</span></div>
+        <div class="tile"><b id="p3">0</b><span>en negativo</span></div>
+      </div>
+      <input id="pq" placeholder="Buscar producto o c&oacute;digo de barras..." autocomplete="off"
+             style="width:100%;padding:12px;font-size:16px;border:1px solid #d5d9df;border-radius:8px;margin:11px 0 0">
+      <div class="chips" id="pchips"></div>
+      <div id="listaProd"><div class="cargando">Cargando&hellip;</div></div>
+    </div>
+
     <div class="panel-sec" id="sec-equipo">
       <h2>Dar de alta a alguien</h2>
       <div class="card">
         <div class="msg" id="mAlta"></div>
         <p class="ayuda">El correo <b>no tiene que ser real</b>: es solo para entrar.
-          Sin espacios. Por ejemplo <b>jose@generaldistribution.app</b>.</p>
+          Sin espacios. Por ejemplo <b>jose@minegocio.app</b>.</p>
         <input id="nNombre" placeholder="Nombre de la persona" autocomplete="off">
-        <input id="nEmail" placeholder="correo@generaldistribution.app" autocomplete="off">
+        <input id="nEmail" placeholder="correo@minegocio.app" autocomplete="off">
         <input id="nClave" placeholder="Contrase&ntilde;a temporal (m&iacute;nimo 8)" autocomplete="off">
         <button id="btnAlta">Dar de alta</button>
       </div>
@@ -259,6 +318,175 @@ function aviso(id, texto, bien){
   el.innerHTML = texto;
   el.className = 'msg ' + (bien ? 'bien' : 'mal');
   el.style.display = 'block';
+}
+
+/* ---- tiendas ---- */
+var TIENDAS = [];
+
+function baseApp(){
+  /* el panel vive junto a la app: .../panel.html -> .../ */
+  return location.href.replace(/[?#].*$/, '').replace(/panel\.html$/, '');
+}
+function linkDe(codigo){ return baseApp() + '?t=' + encodeURIComponent(codigo); }
+
+function copiar(texto, idMsg, queCopie){
+  var ta = document.createElement('textarea');
+  ta.value = texto; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); aviso(idMsg, '&#10003; ' + queCopie + ' copiado. Ya puedes pegarlo en WhatsApp.', true); }
+  catch(e){ aviso(idMsg, 'No se pudo copiar solo. Selecci&oacute;nalo a mano.', false); }
+  document.body.removeChild(ta);
+}
+
+function cargaTiendas(){
+  req('GET', SB + '/rest/v1/gd_tiendas?select=*&order=ruta.asc,nombre.asc', null, true,
+    function(d){ TIENDAS = d || []; pintaTiendas(); },
+    function(st){
+      if(st === 401){ refresca(cargaTiendas, salir); return; }
+      $('listaTiendas').innerHTML = '<div class="vacio">No se pudieron cargar las tiendas.</div>';
+    });
+}
+
+function pintaTiendas(){
+  if(!TIENDAS.length){ $('listaTiendas').innerHTML = '<div class="vacio">Todav&iacute;a no hay tiendas.</div>'; return; }
+  var porRuta = {}, orden = [], i, t;
+  for(i=0;i<TIENDAS.length;i++){
+    t = TIENDAS[i];
+    var r = t.ruta || 'Sin ruta';
+    if(!porRuta[r]){ porRuta[r] = []; orden.push(r); }
+    porRuta[r].push(t);
+  }
+  var h = '', k, j;
+  for(k=0;k<orden.length;k++){
+    var r = orden[k], lista = porRuta[r];
+    h += '<div class="ruta"><span>' + r + ' &middot; ' + lista.length +
+         (lista.length===1?' tienda':' tiendas') + '</span>';
+    h += '<span class="r"><button class="mini p" data-ruta="' + r + '">Copiar los ' +
+         lista.length + ' links</button></span></div>';
+    h += '<div class="card">';
+    for(j=0;j<lista.length;j++){
+      t = lista[j];
+      h += '<div class="persona' + (t.activo ? '' : ' apagado') + '" style="display:block">';
+      h += '<div><b>' + t.nombre + '</b>';
+      if(t.revisar) h += '<span class="ojo">revisar</span>';
+      if(!t.activo) h += '<span class="ojo">apagada</span>';
+      h += '</div>';
+      if(t.ciudad) h += '<div class="meta">' + t.ciudad + (t.estado ? ', ' + t.estado : '') + '</div>';
+      h += '<div class="lnk">' + linkDe(t.codigo) + '</div>';
+      h += '<button class="mini p" data-link="' + t.codigo + '">Copiar link</button>';
+      h += '<button class="mini" data-abrir="' + t.codigo + '">Abrir</button>';
+      h += '<button class="mini" data-apaga="' + t.id + '" data-val="' + (t.activo?'0':'1') + '">' +
+           (t.activo ? 'Apagar' : 'Prender') + '</button>';
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+  $('listaTiendas').innerHTML = h;
+}
+
+function copiaRuta(r){
+  var s = '', i;
+  for(i=0;i<TIENDAS.length;i++){
+    var t = TIENDAS[i];
+    if((t.ruta || 'Sin ruta') === r && t.activo) s += t.nombre + '\n' + linkDe(t.codigo) + '\n\n';
+  }
+  copiar(s, 'mTienda', 'Los links de ' + r);
+}
+
+function apagaTienda(id, val){
+  var x = new XMLHttpRequest();
+  x.open('PATCH', SB + '/rest/v1/gd_tiendas?id=eq.' + id, true);
+  x.setRequestHeader('apikey', KEY);
+  x.setRequestHeader('Authorization', 'Bearer ' + tok);
+  x.setRequestHeader('Content-Type', 'application/json');
+  x.onreadystatechange = function(){ if(x.readyState === 4) cargaTiendas(); };
+  x.send(JSON.stringify({activo: val === '1'}));
+}
+
+function nuevaTienda(){
+  var n = $('tNombre').value, c = $('tCodigo').value.toLowerCase().replace(/[^a-z0-9-]/g,'');
+  if(!n || !c){ aviso('mTienda', 'Necesito el nombre y el c&oacute;digo.', false); return; }
+  req('POST', SB + '/rest/v1/gd_tiendas',
+    {nombre:n, codigo:c, ruta:($('tRuta').value||null), ciudad:($('tCiudad').value||null)}, true,
+    function(){
+      aviso('mTienda', '&#10003; <b>' + n + '</b> agregada. Su link ya sirve.', true);
+      $('tNombre').value=''; $('tCodigo').value=''; $('tCiudad').value='';
+      cargaTiendas();
+    },
+    function(st, d){
+      if(st === 401){ refresca(nuevaTienda, salir); return; }
+      var m = (d && d.message) ? d.message : 'No se pudo agregar.';
+      if(m.indexOf('duplicate') >= 0 || m.indexOf('unique') >= 0) m = 'Ese c&oacute;digo ya lo usa otra tienda.';
+      aviso('mTienda', m, false);
+    });
+}
+
+/* ---- productos ---- */
+var PCAT = '';
+
+function cargaProductos(){
+  var q = $('pq').value.trim();
+  var u = SB + '/rest/v1/gd_productos?select=id,nombre,categoria,precio,existencia,foto,upc,activo' +
+          '&order=nombre.asc&limit=60';
+  if(q){
+    var e = encodeURIComponent('%' + q + '%');
+    u += '&or=(nombre.ilike.' + e + ',upc.ilike.' + e + ')';
+  }
+  if(PCAT) u += '&categoria=eq.' + encodeURIComponent(PCAT);
+  req('GET', u, null, true,
+    function(d){ pintaProductos(d || []); },
+    function(st){
+      if(st === 401){ refresca(cargaProductos, salir); return; }
+      $('listaProd').innerHTML = '<div class="vacio">No se pudieron cargar los productos.</div>';
+    });
+  resumenProd();
+}
+
+function resumenProd(){
+  var base = SB + '/rest/v1/gd_productos?select=id';
+  function cuenta(filtro, destino){
+    var x = new XMLHttpRequest();
+    x.open('GET', base + filtro + '&limit=1', true);
+    x.setRequestHeader('apikey', KEY);
+    x.setRequestHeader('Authorization', 'Bearer ' + tok);
+    x.setRequestHeader('Prefer', 'count=exact');
+    x.onreadystatechange = function(){
+      if(x.readyState !== 4) return;
+      var cr = x.getResponseHeader('content-range') || '';
+      var n = cr.split('/')[1];
+      if(n) $(destino).innerHTML = n;
+    };
+    x.send(null);
+  }
+  cuenta('', 'p1');
+  cuenta('&existencia=eq.0', 'p2');
+  cuenta('&existencia=lt.0', 'p3');
+}
+
+function pintaProductos(d){
+  if(!d.length){ $('listaProd').innerHTML = '<div class="vacio">Nada con esa b&uacute;squeda.</div>'; return; }
+  var h = '', i;
+  for(i=0;i<d.length;i++){
+    var p = d[i], e = p.existencia || 0;
+    var cls = e > 0 ? 'ok' : (e < 0 ? 'neg' : 'cero');
+    h += '<div class="pr">';
+    h += '<div class="im">' + (p.foto ? '<img src="' + p.foto + '" loading="lazy" alt="">' : '<span class="im"></span>') + '</div>';
+    h += '<div class="nf"><b>' + p.nombre + '</b>';
+    h += '<div class="meta">' + (p.categoria || 'Sin categor&iacute;a') + ' &middot; $' + (p.precio || 0) + '</div>';
+    if(p.upc) h += '<div class="upc">' + p.upc + '</div>';
+    h += '</div>';
+    h += '<div class="ex ' + cls + '"><b>' + e + '</b><span class="meta">en bodega</span></div>';
+    h += '</div>';
+  }
+  $('listaProd').innerHTML = h;
+}
+
+function pchips(){
+  var cats = ['', 'Dulces', 'Bebidas', 'Abarrotes', 'Botanas'], h = '', i;
+  for(i=0;i<cats.length;i++){
+    h += '<button class="chip' + (PCAT===cats[i]?' on':'') + '" data-pc="' + cats[i] + '">' +
+         (cats[i] || 'Todo') + '</button>';
+  }
+  $('pchips').innerHTML = h;
 }
 
 /* ---- equipo ---- */
@@ -455,18 +683,35 @@ document.addEventListener('click', function(e){
         var ss = document.getElementsByClassName('panel-sec');
         for(i=0;i<ss.length;i++) ss[i].className = 'panel-sec';
         $('sec-' + sec).className = 'panel-sec on';
-        if(sec === 'equipo') cargaEquipo();
+        if(sec === 'equipo')    cargaEquipo();
+        if(sec === 'tiendas')   cargaTiendas();
+        if(sec === 'productos'){ pchips(); cargaProductos(); }
         window.scrollTo(0,0);
         return;
       }
       var sw = el.getAttribute('data-sw');
       if(sw){ prendeApaga(sw, el.getAttribute('data-val')); return; }
+      var lk = el.getAttribute('data-link');
+      if(lk){ copiar(linkDe(lk), 'mTienda', 'El link'); return; }
+      var ab = el.getAttribute('data-abrir');
+      if(ab){ window.open(linkDe(ab), '_blank'); return; }
+      var ru = el.getAttribute('data-ruta');
+      if(ru){ copiaRuta(ru); return; }
+      var ap = el.getAttribute('data-apaga');
+      if(ap){ apagaTienda(ap, el.getAttribute('data-val')); return; }
+      var pc = el.getAttribute('data-pc');
+      if(pc !== null && pc !== undefined && el.className.indexOf('chip') >= 0){
+        PCAT = pc; pchips(); cargaProductos(); return;
+      }
     }
     el = el.parentNode;
   }
 }, false);
 
 $('btnAlta').onclick = daDeAlta;
+$('btnTienda').onclick = nuevaTienda;
+var pqEl = $('pq');
+pqEl.onkeyup = cargaProductos; pqEl.oninput = cargaProductos; pqEl.onchange = cargaProductos;
 $('btnClave').onclick = cambiaClave;
 
 $('entrar').onclick = function(){
