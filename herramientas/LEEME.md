@@ -72,3 +72,25 @@ Para comprobar que quedó bien, hay que probar las tres caras:
 3. **Sin sesión** → 401
 
 Si la tercera no da 401, algo quedó mal y **cualquiera podría crear cuentas**.
+
+---
+
+## ⚠️ El generador ya NO vive aquí
+
+Desde el **11 de octubre de 2026**, `index.html` se genera desde el molde compartido:
+
+```
+C:\Users\PC_User\Jema\_moldes\pedidos
+```
+
+Ahí están la plantilla, el generador y las instrucciones. Se corre así:
+
+```bash
+cd "C:\Users\PC_User\Jema\_moldes\pedidos"
+python3 generar.py ejemplo
+```
+
+y se copia `ejemplo/salida/index.html` a esta carpeta.
+
+**Se quitó la copia que vivía aquí** (`generar-app.py`) porque eran dos generadores
+iguales y tarde o temprano se iban a desfasar. El historial de git la conserva.
