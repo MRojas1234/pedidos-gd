@@ -175,6 +175,9 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
       <p class="ayuda" style="padding:0 3px;margin-top:-2px">Cada tienda tiene su propio link.
         Al abrirlo, el nombre <b>ya viene puesto</b> y el pedido te llega amarrado a ella:
         nadie lo escribe a mano.</p>
+      <input id="tq" placeholder="Buscar tienda por nombre o ciudad..." autocomplete="off"
+             style="width:100%;padding:12px;font-size:16px;border:1px solid #d5d9df;border-radius:8px;margin:4px 0 2px">
+      <p class="ayuda" id="tAviso" style="padding:0 3px"></p>
       <div id="listaTiendas"><div class="cargando">Cargando&hellip;</div></div>
 
       <h2>Agregar una tienda</h2>
@@ -338,16 +341,37 @@ function copiar(texto, idMsg, queCopie){
 }
 
 function cargaTiendas(){
-  req('GET', SB + '/rest/v1/gd_tiendas?select=*&order=ruta.asc,nombre.asc', null, true,
-    function(d){ TIENDAS = d || []; pintaTiendas(); },
+  var q = $('tq') ? $('tq').value.trim() : '';
+  var u = SB + '/rest/v1/gd_tiendas?select=*&order=ruta.asc,nombre.asc&limit=400';
+  if(q){
+    var e = encodeURIComponent('%' + q + '%');
+    u += '&or=(nombre.ilike.' + e + ',ciudad.ilike.' + e + ')';
+  } else {
+    u += '&activo=is.true';   /* el dia a dia es con las prendidas */
+  }
+  req('GET', u, null, true,
+    function(d){ TIENDAS = d || []; pintaTiendas(q); },
     function(st){
       if(st === 401){ refresca(cargaTiendas, salir); return; }
       $('listaTiendas').innerHTML = '<div class="vacio">No se pudieron cargar las tiendas.</div>';
     });
 }
 
-function pintaTiendas(){
-  if(!TIENDAS.length){ $('listaTiendas').innerHTML = '<div class="vacio">Todav&iacute;a no hay tiendas.</div>'; return; }
+function pintaTiendas(q){
+  var av = $('tAviso');
+  if(q){
+    av.innerHTML = 'Resultados de <b>' + q + '</b> &mdash; incluye las apagadas. ' +
+                   'D&eacute;jalo vac&iacute;o para ver solo las prendidas.';
+  } else {
+    av.innerHTML = 'Viendo las tiendas <b>prendidas</b>. Busca por nombre o ciudad para ' +
+                   'encontrar las dem&aacute;s y prenderlas.';
+  }
+  if(!TIENDAS.length){
+    $('listaTiendas').innerHTML = '<div class="vacio">' +
+      (q ? 'Ninguna tienda con eso.' : 'Todav&iacute;a no hay tiendas prendidas.<br>Busca una arriba para prenderla.') +
+      '</div>';
+    return;
+  }
   var porRuta = {}, orden = [], i, t;
   for(i=0;i<TIENDAS.length;i++){
     t = TIENDAS[i];
@@ -384,12 +408,15 @@ function pintaTiendas(){
 }
 
 function copiaRuta(r){
-  var s = '', i;
+  var s = '', n = 0, i;
   for(i=0;i<TIENDAS.length;i++){
     var t = TIENDAS[i];
-    if((t.ruta || 'Sin ruta') === r && t.activo) s += t.nombre + '\n' + linkDe(t.codigo) + '\n\n';
+    if((t.ruta || 'Sin ruta') === r && t.activo){
+      s += t.nombre + '\n' + linkDe(t.codigo) + '\n\n'; n++;
+    }
   }
-  copiar(s, 'mTienda', 'Los links de ' + r);
+  if(!n){ aviso('mTienda', 'No hay tiendas prendidas en ' + r + '.', false); return; }
+  copiar(s, 'mTienda', 'Los ' + n + ' links de ' + r);
 }
 
 function apagaTienda(id, val){
@@ -710,6 +737,8 @@ document.addEventListener('click', function(e){
 
 $('btnAlta').onclick = daDeAlta;
 $('btnTienda').onclick = nuevaTienda;
+var tqEl = $('tq');
+tqEl.onkeyup = cargaTiendas; tqEl.oninput = cargaTiendas; tqEl.onchange = cargaTiendas;
 var pqEl = $('pq');
 pqEl.onkeyup = cargaProductos; pqEl.oninput = cargaProductos; pqEl.onchange = cargaProductos;
 $('btnClave').onclick = cambiaClave;
