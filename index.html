@@ -35,6 +35,8 @@ header{background:#1f2937;color:#fff;padding:10px 12px;position:sticky;top:0;z-i
       color:#48505a;font-size:13px;font-weight:600;border:0}
 .chip.on{background:#1f2937;color:#fff}
 .count{padding:9px 13px;color:#6b7280;font-size:13px}
+.count .act{float:right;color:#1f2937;font-weight:700;text-decoration:underline;cursor:pointer}
+.count .act:active{opacity:.5}
 .grid{padding:0 8px}
 .card{background:#fff;border-radius:10px;margin-bottom:8px;padding:9px;display:table;width:100%;
       box-shadow:0 1px 2px rgba(16,24,40,.07)}
@@ -399,7 +401,7 @@ function render(){
     out.push(p);
   }
   shown = out;
-  document.getElementById('count').innerHTML = out.length + (out.length===1 ? ' producto' : ' productos') + (cat ? ' en ' + cat : '');
+  document.getElementById('count').innerHTML = out.length + (out.length===1 ? ' producto' : ' productos') + (cat ? ' en ' + cat : '') + '<span class="act" id="refrescar">Actualizar</span>';
   var lim = Math.min(out.length, 200), h = '';
   for(i=0;i<lim;i++){
     p = out[i];
@@ -484,6 +486,13 @@ function texto(){
 document.addEventListener('click', function(e){
   var el = e.target;
   while(el && el !== document.body){
+    if(el.id === 'refrescar'){
+      try { localStorage.removeItem('gd_cat'); } catch(e2){}
+      var c2 = document.getElementById('count');
+      if(c2) c2.innerHTML = 'Actualizando el cat&aacute;logo&hellip;';
+      traeCatalogo();
+      return;
+    }
     if(el.getAttribute){
       var a = el.getAttribute('data-a'), m = el.getAttribute('data-m'), c = el.getAttribute('data-c');
       if(a){ bump(a, 1); if(document.getElementById('sheet').className.indexOf('on')>=0) lines(); return; }
