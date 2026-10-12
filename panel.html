@@ -127,6 +127,16 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 .ex.cero b{color:#6b7280}
 .ex.neg b{color:#b91c1c}
 .upc{font-size:11px;color:#8b929c;font-family:ui-monospace,Menlo,Consolas,monospace}
+/* ---- estados del pedido ---- */
+.est{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
+     vertical-align:middle;margin-left:6px}
+.est.nuevo     {background:#dbeafe;color:#1e40af}
+.est.preparado {background:#ede9fe;color:#5b21b6}
+.est.en_camino {background:#fef3c7;color:#7c4a03}
+.est.entregado {background:#dcfce7;color:#065f2b}
+.est.pagado    {background:#1f2937;color:#fff}
+.est.cancelado {background:#fee2e2;color:#991b1b}
+.avz{margin:9px 0 2px}
 </style>
 </head>
 <body>
@@ -240,7 +250,32 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 /* JS a la antigua, igual que la app de pedidos. */
 var SB   = 'https://pwcpjaibjigqppyidtse.supabase.co';
 var KEY  = 'sb_publishable_n4vrzEbspo0D0OYvDge7qg_DvQ5X7J_';
-var tok = '', ref = '', dias = 7, PEDIDOS = [], esDueno = false;
+var tok = '', ref = '', dias = 7, PEDIDOS = [], esDueno = false, ESTADO = '';
+
+/* El camino del pedido. Cada paso lo marca una persona, a mano, cuando de verdad paso. */
+var PASOS = [['nuevo','Nuevo'],['preparado','Preparado'],['en_camino','En camino'],
+             ['entregado','Entregado'],['pagado','Pagado']];
+function etiqueta(e){
+  for(var i=0;i<PASOS.length;i++){ if(PASOS[i][0] === e) return PASOS[i][1]; }
+  return e === 'cancelado' ? 'Cancelado' : e;
+}
+function siguiente(e){
+  for(var i=0;i<PASOS.length-1;i++){ if(PASOS[i][0] === e) return PASOS[i+1]; }
+  return null;
+}
+function mueveEstado(id, nuevo){
+  var x = new XMLHttpRequest();
+  x.open('PATCH', SB + '/rest/v1/gd_pedidos?id=eq.' + id, true);
+  x.setRequestHeader('apikey', KEY);
+  x.setRequestHeader('Authorization', 'Bearer ' + tok);
+  x.setRequestHeader('Content-Type', 'application/json');
+  x.onreadystatechange = function(){
+    if(x.readyState !== 4) return;
+    if(x.status === 401){ refresca(function(){ mueveEstado(id, nuevo); }, salir); return; }
+    carga();
+  };
+  x.send(JSON.stringify({estado: nuevo}));
+}
 
 function $(id){ return document.getElementById(id); }
 function money(n){ return '$' + (Math.round(n*100)/100).toFixed(2); }
@@ -598,10 +633,11 @@ function desde(){
 
 function carga(){
   $('cuerpo').innerHTML = '<div class="cargando">Cargando&hellip;</div>';
-  var u = SB + '/rest/v1/gd_pedidos?select=folio,tienda,nota,articulos,total,creado,gd_pedido_lineas(producto,categoria,precio,cantidad,importe)'
+  var u = SB + '/rest/v1/gd_pedidos?select=id,folio,tienda,nota,articulos,total,creado,estado,gd_pedido_lineas(producto,categoria,precio,cantidad,importe)'
         + '&es_prueba=eq.false&order=creado.desc&limit=300';
   var d = desde();
   if(d) u += '&creado=gte.' + encodeURIComponent(d);
+  if(ESTADO) u += '&estado=eq.' + ESTADO;
   req('GET', u, null, true,
     function(datos){ PEDIDOS = datos || []; pinta(); },
     function(st){
@@ -614,6 +650,12 @@ function chips(){
   var ops = [[1,'Hoy'],[7,'7 d&iacute;as'],[30,'30 d&iacute;as'],[0,'Todo']], h = '', i;
   for(i=0;i<ops.length;i++){
     h += '<button class="chip' + (dias===ops[i][0]?' on':'') + '" data-d="' + ops[i][0] + '">' + ops[i][1] + '</button>';
+  }
+  h += '<span style="display:inline-block;width:14px"></span>';
+  h += '<button class="chip' + (ESTADO===''?' on':'') + '" data-e="">Todos</button>';
+  for(i=0;i<PASOS.length;i++){
+    h += '<button class="chip' + (ESTADO===PASOS[i][0]?' on':'') + '" data-e="' + PASOS[i][0] + '">' +
+         PASOS[i][1] + '</button>';
   }
   $('chips').innerHTML = h;
 }
@@ -662,7 +704,9 @@ function pinta(){
   for(i=0;i<PEDIDOS.length;i++){
     var p = PEDIDOS[i];
     h += '<div class="ped"><div class="pc" data-abre="' + i + '">';
-    h += '<div class="a"><div class="tienda">' + p.tienda + '</div>';
+    var est = p.estado || 'nuevo';
+    h += '<div class="a"><div class="tienda">' + p.tienda +
+         '<span class="est ' + est + '">' + etiqueta(est) + '</span></div>';
     h += '<div class="meta">Folio ' + p.folio + ' &middot; ' + fecha(p.creado) + '</div></div>';
     h += '<div class="b"><div class="tot">' + money(p.total) + '</div>';
     h += '<div class="art">' + p.articulos + (p.articulos===1?' art&iacute;culo':' art&iacute;culos') + '</div></div>';
@@ -674,6 +718,13 @@ function pinta(){
       h += '<div class="b">' + money(ls2[j].importe) + '</div></div>';
     }
     if(!ls2.length) h += '<div class="ln"><div class="a">Este pedido no trae renglones.</div><div class="b"></div></div>';
+    var sig = siguiente(est);
+    h += '<div class="avz">';
+    if(sig) h += '<button class="mini p" data-mov="' + p.id + '" data-a="' + sig[0] + '">Marcar como ' + sig[1] + '</button>';
+    else if(est === 'pagado') h += '<span class="meta">&#10003; Pedido cerrado</span>';
+    if(est !== 'cancelado' && est !== 'pagado')
+      h += '<button class="mini" data-mov="' + p.id + '" data-a="cancelado">Cancelar</button>';
+    h += '</div>';
     h += '</div></div>';
   }
 
@@ -726,6 +777,12 @@ document.addEventListener('click', function(e){
       if(ru){ copiaRuta(ru); return; }
       var ap = el.getAttribute('data-apaga');
       if(ap){ apagaTienda(ap, el.getAttribute('data-val')); return; }
+      var mv = el.getAttribute('data-mov');
+      if(mv){ mueveEstado(mv, el.getAttribute('data-a')); return; }
+      var ef = el.getAttribute('data-e');
+      if(ef !== null && ef !== undefined && el.className.indexOf('chip') >= 0){
+        ESTADO = ef; chips(); carga(); return;
+      }
       var pc = el.getAttribute('data-pc');
       if(pc !== null && pc !== undefined && el.className.indexOf('chip') >= 0){
         PCAT = pc; pchips(); cargaProductos(); return;
