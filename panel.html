@@ -136,7 +136,14 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 .est.entregado {background:#dcfce7;color:#065f2b}
 .est.pagado    {background:#1f2937;color:#fff}
 .est.cancelado {background:#fee2e2;color:#991b1b}
-.avz{margin:9px 0 2px}
+.avz{margin:10px 0 2px;padding-top:9px;border-top:1px solid #eceef1}
+.avz .cual{font-size:11.5px;color:#6b7280;margin-bottom:6px}
+.pas{border:1px solid #d5d9df;background:#fff;border-radius:7px;padding:8px 11px;
+     font-size:12.5px;font-weight:600;color:#1f2937;width:auto;display:inline-block;margin:0 6px 6px 0}
+.pas.hoy{background:#1f2937;color:#fff;border-color:#1f2937}
+.pas.atras{opacity:.55}
+.canc{margin-top:8px;font-size:12px;color:#b91c1c;background:transparent;border:0;
+      text-decoration:underline;width:auto;padding:4px 0}
 </style>
 </head>
 <body>
@@ -718,12 +725,21 @@ function pinta(){
       h += '<div class="b">' + money(ls2[j].importe) + '</div></div>';
     }
     if(!ls2.length) h += '<div class="ln"><div class="a">Este pedido no trae renglones.</div><div class="b"></div></div>';
-    var sig = siguiente(est);
     h += '<div class="avz">';
-    if(sig) h += '<button class="mini p" data-mov="' + p.id + '" data-a="' + sig[0] + '">Marcar como ' + sig[1] + '</button>';
-    else if(est === 'pagado') h += '<span class="meta">&#10003; Pedido cerrado</span>';
-    if(est !== 'cancelado' && est !== 'pagado')
-      h += '<button class="mini" data-mov="' + p.id + '" data-a="cancelado">Cancelar</button>';
+    if(est === 'cancelado'){
+      h += '<div class="cual">Este pedido est&aacute; cancelado. Puedes regresarlo:</div>';
+      h += '<button class="pas" data-mov="' + p.id + '" data-a="nuevo">Regresar a Nuevo</button>';
+    } else {
+      h += '<div class="cual">&iquest;En qu&eacute; va este pedido? Toca el que corresponda:</div>';
+      var hoy = -1, j2;
+      for(j2=0;j2<PASOS.length;j2++){ if(PASOS[j2][0] === est) hoy = j2; }
+      for(j2=0;j2<PASOS.length;j2++){
+        var clase = 'pas' + (j2===hoy ? ' hoy' : (j2<hoy ? ' atras' : ''));
+        h += '<button class="' + clase + '" data-mov="' + p.id + '" data-a="' + PASOS[j2][0] + '">' +
+             (j2===hoy ? '&#10003; ' : '') + PASOS[j2][1] + '</button>';
+      }
+      h += '<div><button class="canc" data-mov="' + p.id + '" data-a="cancelado">Cancelar este pedido</button></div>';
+    }
     h += '</div>';
     h += '</div></div>';
   }
