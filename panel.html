@@ -211,6 +211,19 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 
     <div class="panel-sec" id="sec-productos">
       <div class="msg" id="mProd"></div>
+
+      <div class="card" id="cardQb" style="display:none">
+        <h3>Refrescar el cat&aacute;logo desde QuickBooks</h3>
+        <p class="ayuda">En QuickBooks: <b>Products &amp; services &rarr; Export table</b>.
+          Luego escoge aqu&iacute; ese archivo.<br>
+          Primero te digo qu&eacute; va a pasar. <b>Nada cambia hasta que aprietes el segundo
+          bot&oacute;n.</b> Lo que ya no est&eacute; en QuickBooks <b>se apaga, no se borra</b>:
+          si te equivocaste, se recupera.</p>
+        <div class="msg" id="mQb"></div>
+        <input type="file" id="qbArch" accept=".csv,text/csv">
+        <button class="mini" id="bQbVer" style="margin-top:9px">1 &middot; Revisar sin cambiar nada</button>
+        <div id="qbRes"></div>
+      </div>
       <div class="tiles">
         <div class="tile"><b id="p1">0</b><span>productos</span></div>
         <div class="tile"><b id="p2">0</b><span>sin existencia</span></div>
@@ -344,6 +357,7 @@ function quienSoy(){
         $('quien').innerHTML = d[0].nombre + (d[0].rol === 'dueno' ? '' : ' &middot; ' + d[0].rol);
         esDueno = (d[0].rol === 'dueno');
         $('tabEquipo').style.display = esDueno ? 'inline-block' : 'none';
+        $('cardQb').style.display = esDueno ? 'block' : 'none';
       }
     },
     function(){});
@@ -489,6 +503,172 @@ function nuevaTienda(){
     });
 }
 
+/* ---- refrescar el catalogo desde QuickBooks ----
+   El archivo lo lee el navegador; aqui solo se convierte a renglones y se
+   manda a la base. La base decide que se actualiza, que se agrega y que se
+   apaga: ver gd_qb_cargar y gd_qb_aplicar. Nada se borra nunca. */
+var QBL = [], QBCUENTA = null;
+var QBT = 250;   /* renglones por tanda, para no mandar un bulto enorme */
+
+/* Lee un CSV respetando las comillas: hay nombres con comas adentro. */
+function qbFilas(txt){
+  var filas = [], f = [], c = '', dentro = false, i, ch;
+  txt = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  for(i = 0; i < txt.length; i++){
+    ch = txt.charAt(i);
+    if(dentro){
+      if(ch === '"'){
+        if(txt.charAt(i+1) === '"'){ c += '"'; i++; }
+        else dentro = false;
+      } else c += ch;
+    }
+    else if(ch === '"'){ dentro = true; }
+    else if(ch === ','){ f.push(c); c = ''; }
+    else if(ch === '\n'){ f.push(c); filas.push(f); f = []; c = ''; }
+    else c += ch;
+  }
+  if(c !== '' || f.length){ f.push(c); filas.push(f); }
+  return filas;
+}
+
+function qbNum(s){
+  var n = parseFloat(String(s || '').replace(/[$,]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+function qbLimpia(s){ return String(s || '').replace(/\|/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+/* Decide si lo que trae la columna SKU es de verdad un codigo de barras. */
+function qbCodigo(sku, nombre){
+  if(!sku || sku === nombre) return '';
+  if(sku.toUpperCase().indexOf('E') >= 0) return '';   /* 7,03885E+11: Excel lo arruino */
+  var d = sku.replace(/[^0-9]/g, '');
+  return (d.length >= 8 && d.length <= 14) ? d : '';
+}
+
+function qbArma(txt){
+  var filas = qbFilas(txt);
+  if(!filas.length) return null;
+  var cab = filas[0], col = {}, i;
+  for(i = 0; i < cab.length; i++) col[qbLimpia(cab[i])] = i;
+  if(col['Product/Service Name'] === undefined || col['SKU'] === undefined) return null;
+
+  var lineas = [], c = {total:0, codigo:0, nombre:0, vacio:0, raro:0};
+  for(i = 1; i < filas.length; i++){
+    var f = filas[i];
+    var nom = qbLimpia(f[col['Product/Service Name']]);
+    if(!nom) continue;
+    var sku = qbLimpia(f[col['SKU']]);
+    var cod = qbCodigo(sku, nom);
+    c.total++;
+    if(cod) c.codigo++;
+    else if(!sku) c.vacio++;
+    else if(sku === nom) c.nombre++;
+    else c.raro++;
+    lineas.push([nom, cod, sku,
+                 qbLimpia(f[col['Category']]) || 'Otros',
+                 qbNum(f[col['Price']]).toFixed(2),
+                 qbNum(f[col['Cost']]).toFixed(2),
+                 String(Math.round(qbNum(f[col['Quantity on hand']])))].join('|'));
+  }
+  QBCUENTA = c;
+  return lineas;
+}
+
+function qbAviso(m, bien){ aviso('mQb', m, bien); }
+
+function qbFalla(st){
+  if(st === 401){ refresca(function(){ qbAviso('Vuelve a intentarlo.', false); }, salir); return; }
+  qbAviso('No se pudo. Revisa que el archivo sea el de QuickBooks y vuelve a intentar.', false);
+  $('bQbVer').disabled = false;
+}
+
+function qbRpc(fn, cuerpo, ok){
+  req('POST', SB + '/rest/v1/rpc/' + fn, cuerpo, true, ok, qbFalla);
+}
+
+function qbSube(i){
+  if(i >= QBL.length){ qbEnsayo(); return; }
+  qbAviso('Subiendo&hellip; ' + i + ' de ' + QBL.length, true);
+  qbRpc('gd_qb_cargar',
+        {p_lineas: QBL.slice(i, i + QBT).join('\n'), p_primera: (i === 0)},
+        function(){ qbSube(i + QBT); });
+}
+
+function qbTabla(r, falta){
+  var h = '<div class="top" style="margin-top:11px">';
+  function fila(a, b, fuerte){
+    h += '<div class="ln"><div class="a">' + a + '</div><div class="b"' +
+         (fuerte ? ' style="color:#991b1b;font-weight:700"' : '') + '>' + b + '</div></div>';
+  }
+  fila('En QuickBooks', r.en_quickbooks);
+  fila('Se actualizan (ya los tienes)', r.actualizados);
+  fila('Se agregan (nuevos)', r.nuevos);
+  fila('<b>Se apagan</b> (ya no est&aacute;n en QuickBooks)', r.se_apagan, r.se_apagan > 0);
+  if(r.se_apagan_con_mercancia > 0)
+    fila('&nbsp;&nbsp;&middot; de esos, con existencia distinta de cero', r.se_apagan_con_mercancia, true);
+  if(r.piezas_que_se_apagan > 0)
+    fila('&nbsp;&nbsp;&middot; piezas en bodega que dejan de verse', r.piezas_que_se_apagan, true);
+  if(r.se_apagan_ya_pedidos > 0)
+    fila('&nbsp;&nbsp;&middot; de esos, ya aparecen en pedidos hechos', r.se_apagan_ya_pedidos, true);
+  if(QBCUENTA){
+    fila('Con c&oacute;digo de barras de verdad', QBCUENTA.codigo);
+    fila('Con el <b>nombre</b> en el campo del c&oacute;digo', QBCUENTA.nombre);
+    fila('Sin nada en el campo del c&oacute;digo', QBCUENTA.vacio);
+    if(QBCUENTA.raro) fila('Con algo que no sirve de c&oacute;digo', QBCUENTA.raro);
+  }
+  h += '</div>';
+  if(falta){
+    h += '<div class="nota" style="margin-top:11px">Los pedidos que ya hiciste <b>no se tocan</b>. ' +
+         'Los productos que se apagan dejan de verse en el cat&aacute;logo, pero siguen en la base ' +
+         'con su existencia.</div>' +
+         '<button class="mini p" id="bQbAplicar" style="margin-top:9px">2 &middot; Aplicar: ' +
+         'actualizar ' + r.actualizados + ', agregar ' + r.nuevos + ', apagar ' + r.se_apagan + '</button>';
+  }
+  $('qbRes').innerHTML = h;
+  if(falta) $('bQbAplicar').onclick = qbAplica;
+}
+
+function qbEnsayo(){
+  qbRpc('gd_qb_aplicar', {p_de_verdad: false}, function(r){
+    qbAviso('Esto es lo que <b>pasar&iacute;a</b>. Todav&iacute;a no se toc&oacute; nada.', true);
+    qbTabla(r, true);
+    $('bQbVer').disabled = false;
+  });
+}
+
+function qbAplica(){
+  $('bQbAplicar').disabled = true;
+  $('bQbAplicar').innerHTML = 'Aplicando&hellip;';
+  qbRpc('gd_qb_aplicar', {p_de_verdad: true}, function(r){
+    qbAviso('Listo. Cat&aacute;logo refrescado.', true);
+    qbTabla(r, false);
+    cargaProductos();
+  });
+}
+
+function qbArranca(){
+  var arch = $('qbArch').files && $('qbArch').files[0];
+  if(!arch){ qbAviso('Primero escoge el archivo que bajaste de QuickBooks.', false); return; }
+  $('bQbVer').disabled = true;
+  $('qbRes').innerHTML = '';
+  qbAviso('Leyendo el archivo&hellip;', true);
+  var fr = new FileReader();
+  fr.onload = function(){
+    QBL = qbArma(String(fr.result));
+    if(!QBL || !QBL.length){
+      qbAviso('Ese archivo no parece el de QuickBooks: no traigo la columna del nombre ni la del SKU.', false);
+      $('bQbVer').disabled = false;
+      return;
+    }
+    qbSube(0);
+  };
+  fr.onerror = function(){
+    qbAviso('No pude leer el archivo.', false);
+    $('bQbVer').disabled = false;
+  };
+  fr.readAsText(arch);
+}
+
 /* ---- productos ---- */
 var PCAT = '';
 
@@ -530,6 +710,8 @@ function resumenProd(){
   cuenta('&existencia=eq.0', 'p2');
   cuenta('&existencia=lt.0', 'p3');
 }
+
+if($('bQbVer')) $('bQbVer').onclick = qbArranca;
 
 function pintaProductos(d){
   if(!d.length){ $('listaProd').innerHTML = '<div class="vacio">Nada con esa b&uacute;squeda.</div>'; return; }
