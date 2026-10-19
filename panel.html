@@ -212,6 +212,17 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
     <div class="panel-sec" id="sec-productos">
       <div class="msg" id="mProd"></div>
 
+      <div class="card" id="cardQbApi" style="display:none">
+        <h3>QuickBooks conectado &mdash; sin bajar archivo</h3>
+        <p class="ayuda">Conectado una vez, el cat&aacute;logo se trae solo al apretar un
+          bot&oacute;n: ya no hay que exportar nada.<br>
+          Esta conexi&oacute;n <b>s&oacute;lo lee</b> de QuickBooks. No escribe, no borra,
+          no toca facturas ni pagos. Y la puedes cortar aqu&iacute; mismo cuando quieras.</p>
+        <div class="msg" id="mQbApi"></div>
+        <div id="qbApiEstado"><div class="cargando" style="padding:14px">Viendo c&oacute;mo est&aacute;&hellip;</div></div>
+        <div id="qbApiRes"></div>
+      </div>
+
       <div class="card" id="cardQb" style="display:none">
         <h3>Refrescar el cat&aacute;logo desde QuickBooks</h3>
         <p class="ayuda">En QuickBooks: <b>Products &amp; services &rarr; Export table</b>.
@@ -358,6 +369,8 @@ function quienSoy(){
         esDueno = (d[0].rol === 'dueno');
         $('tabEquipo').style.display = esDueno ? 'inline-block' : 'none';
         $('cardQb').style.display = esDueno ? 'block' : 'none';
+        $('cardQbApi').style.display = esDueno ? 'block' : 'none';
+        if(esDueno) qbApiEstado();
       }
     },
     function(){});
@@ -503,11 +516,117 @@ function nuevaTienda(){
     });
 }
 
+/* ---- QuickBooks conectado por API ----
+   El secreto de Intuit NO vive aqui: vive en los secretos de Supabase y
+   solo lo ve la funcion de servidor gd-quickbooks. Este archivo es publico.
+   El refresh lo hace la misma gd_qb_aplicar que el camino del archivo:
+   una sola logica de sincronizacion, ya probada. */
+var QBAPI = SB + '/functions/v1/gd-quickbooks';
+
+function qbApiFalla(st, d){
+  if(st === 401 && !(d && d.error)){ refresca(qbApiEstado, salir); return; }
+  aviso('mQbApi', (d && d.error) ? d.error : 'No se pudo hablar con la funcion de QuickBooks.', false);
+  var b = $('bQbApiVer'); if(b) b.disabled = false;
+}
+
+function qbApiLlama(cuerpo, ok){
+  req('POST', QBAPI, cuerpo, true, ok, qbApiFalla);
+}
+
+function qbFecha(s){
+  if(!s) return 'nunca';
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? s : d.toLocaleString();
+}
+
+function qbApiEstado(){
+  qbApiLlama({accion:'estado'}, function(d){
+    var h = '';
+    if(!d.secretos_puestos){
+      /* El proceso mismo lo dice. No se queda callado esperando a que alguien adivine. */
+      h = '<div class="nota">Todav&iacute;a <b>faltan las dos llaves de Intuit</b> en Supabase ' +
+          '(<code>QB_CLIENT_ID</code> y <code>QB_CLIENT_SECRET</code>). Mientras no est&eacute;n, ' +
+          'este cuadro no sirve &mdash; usa el de abajo, el del archivo.</div>';
+      $('qbApiEstado').innerHTML = h;
+      $('qbApiRes').innerHTML = '';
+      return;
+    }
+    if(!d.conectado){
+      h = '<p class="ayuda" style="margin:0 0 9px"><b>Todav&iacute;a no est&aacute; conectado.</b> ' +
+          'Al apretar aqu&iacute; se abre QuickBooks para que le des permiso. ' +
+          'Te va a preguntar de cu&aacute;l empresa.</p>' +
+          '<button class="mini p" id="bQbConectar">Conectar con QuickBooks</button>';
+    } else {
+      h = '<div class="top"><div class="ln"><div class="a">Empresa de QuickBooks</div>' +
+          '<div class="b">' + d.empresa + '</div></div>' +
+          '<div class="ln"><div class="a">Conectado desde</div><div class="b">' +
+          qbFecha(d.conectado_el) + '</div></div>' +
+          '<div class="ln"><div class="a">&Uacute;ltima vez que se us&oacute;</div><div class="b">' +
+          qbFecha(d.ultimo_refresh) + '</div></div></div>';
+      if(d.ultimo_error){
+        h += '<div class="nota" style="border-left-color:#dc2626">&Uacute;ltimo problema: ' +
+             d.ultimo_error + '</div>';
+      }
+      h += '<button class="mini" id="bQbApiVer" style="margin-top:9px">' +
+           'Traer de QuickBooks y revisar sin cambiar nada</button>' +
+           '<button class="mini" id="bQbDesconectar" style="margin-top:7px;color:#b91c1c;' +
+           'border-color:#f0c8c8">Desconectar de QuickBooks</button>';
+    }
+    $('qbApiEstado').innerHTML = h;
+    if($('bQbConectar'))    $('bQbConectar').onclick    = qbApiConectar;
+    if($('bQbApiVer'))      $('bQbApiVer').onclick      = function(){ qbApiRefresca(false); };
+    if($('bQbDesconectar')) $('bQbDesconectar').onclick = qbApiDesconecta;
+  });
+}
+
+function qbApiConectar(){
+  aviso('mQbApi', 'Pidiendo la liga&hellip;', true);
+  qbApiLlama({accion:'autorizar'}, function(d){
+    /* Se pinta una liga de verdad en vez de abrir la ventana solo: el
+       navegador bloquea las ventanas que no nacen de un clic directo. */
+    $('qbApiRes').innerHTML =
+      '<a href="' + d.url + '" target="_blank" rel="noopener" ' +
+      'style="display:block;text-align:center;padding:13px;margin-top:10px;border-radius:8px;' +
+      'background:#1f2937;color:#fff;text-decoration:none;font-weight:700">' +
+      'Abrir QuickBooks y dar permiso</a>' +
+      '<p class="ayuda" style="margin-top:9px">Se abre en otra pesta&ntilde;a. Cuando te diga ' +
+      '<b>&laquo;Ya qued&oacute; conectado&raquo;</b>, c&eacute;rrala y vuelve aqu&iacute;. ' +
+      'La liga sirve 20 minutos.</p>' +
+      '<button class="mini" id="bQbYa" style="margin-top:7px">Ya le di permiso, rev&iacute;salo</button>';
+    aviso('mQbApi', 'Aprieta la liga negra para darle permiso en QuickBooks.', true);
+    $('bQbYa').onclick = function(){ $('qbApiRes').innerHTML = ''; qbApiEstado(); };
+  });
+}
+
+function qbApiDesconecta(){
+  if(!confirm('Se corta la conexion con QuickBooks. El catalogo que ya esta en la app NO se toca, ' +
+              'y puedes volver a conectar cuando quieras. Seguimos?')) return;
+  qbApiLlama({accion:'desconectar'}, function(){
+    aviso('mQbApi', 'Listo, ya se cort&oacute;.', true);
+    $('qbApiRes').innerHTML = '';
+    qbApiEstado();
+  });
+}
+
+function qbApiRefresca(deVerdad){
+  QBAPIUSADA = true;
+  $('bQbApiVer').disabled = true;
+  aviso('mQbApi', 'Trayendo el cat&aacute;logo de QuickBooks&hellip; tarda unos segundos.', true);
+  qbApiLlama({accion:'refrescar', de_verdad: deVerdad}, function(d){
+    QBCUENTA = d.cuenta || null;
+    aviso('mQbApi', 'QuickBooks mand&oacute; <b>' + d.productos + ' productos</b>. ' +
+          (deVerdad ? 'Ya se aplic&oacute;.' : 'Esto es lo que <b>pasar&iacute;a</b>; no se toc&oacute; nada.'), true);
+    qbTabla(d.resumen, !deVerdad);
+    $('bQbApiVer').disabled = false;
+    if(deVerdad) cargaProductos();
+  });
+}
+
 /* ---- refrescar el catalogo desde QuickBooks ----
    El archivo lo lee el navegador; aqui solo se convierte a renglones y se
    manda a la base. La base decide que se actualiza, que se agrega y que se
    apaga: ver gd_qb_cargar y gd_qb_aplicar. Nada se borra nunca. */
-var QBL = [], QBCUENTA = null;
+var QBL = [], QBCUENTA = null, QBAPIUSADA = false;
 var QBT = 250;   /* renglones por tanda, para no mandar un bulto enorme */
 
 /* Lee un CSV respetando las comillas: hay nombres con comas adentro. */
@@ -625,7 +744,8 @@ function qbTabla(r, falta){
          '<button class="mini p" id="bQbAplicar" style="margin-top:9px">2 &middot; Aplicar: ' +
          'actualizar ' + r.actualizados + ', agregar ' + r.nuevos + ', apagar ' + r.se_apagan + '</button>';
   }
-  $('qbRes').innerHTML = h;
+  /* La tabla se pinta donde se pidio: el cuadro del archivo o el de la API. */
+  $(QBAPIUSADA ? 'qbApiRes' : 'qbRes').innerHTML = h;
   if(falta) $('bQbAplicar').onclick = qbAplica;
 }
 
@@ -640,6 +760,8 @@ function qbEnsayo(){
 function qbAplica(){
   $('bQbAplicar').disabled = true;
   $('bQbAplicar').innerHTML = 'Aplicando&hellip;';
+  /* La mesa de trabajo ya tiene EXACTAMENTE lo que acabas de revisar, no
+     importa si vino del archivo o de la API. Se aplica eso, no algo nuevo. */
   qbRpc('gd_qb_aplicar', {p_de_verdad: true}, function(r){
     qbAviso('Listo. Cat&aacute;logo refrescado.', true);
     qbTabla(r, false);
@@ -648,6 +770,7 @@ function qbAplica(){
 }
 
 function qbArranca(){
+  QBAPIUSADA = false;
   var arch = $('qbArch').files && $('qbArch').files[0];
   if(!arch){ qbAviso('Primero escoge el archivo que bajaste de QuickBooks.', false); return; }
   $('bQbVer').disabled = true;
