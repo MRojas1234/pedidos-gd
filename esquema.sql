@@ -137,3 +137,35 @@ create policy gd_perfiles_dueno_actualiza
 
 -- A PROPOSITO no hay politica de DELETE en ninguna tabla:
 -- desde la app nadie puede borrar nada.
+
+-- =====================================================================
+--  OJO: lo de abajo NO esta en este archivo. Vive como migraciones de
+--  Supabase, que son el registro de verdad. Si necesitas verlo, esta en
+--  el panel de Supabase -> Database -> Migrations, o con la herramienta
+--  de migraciones. Estos son los nombres, en orden:
+--
+--  19 de octubre de 2026 - refrescar el catalogo desde QuickBooks
+--    gd_sincronizar_quickbooks
+--        tabla gd_qb_import (la mesa de trabajo) y la funcion gd_norm
+--    gd_qb_refresh_rpc
+--        gd_qb_cargar + gd_qb_aplicar: toda la logica de sincronizacion
+--    gd_qb_aplicar_fix_producto_id
+--        gd_pedido_lineas.producto_id es TEXTO, no uuid
+--    gd_apagado_motivo
+--        gd_productos.apagado_motivo y .apagado_el: por que se apago
+--    gd_quickbooks_conexion
+--        gd_qb_conexion + gd_qb_oauth_estado + gd_qb_estado_conexion()
+--        para la conexion por API con Intuit
+--    gd_qb_aplicar_arregla_los_nuevos
+--        BUG: los productos nuevos se insertaban y se apagaban solos,
+--        porque "lo que no vino" se calculaba antes del INSERT.
+--        El arreglo es el orden: apagar primero, insertar despues.
+--    gd_qb_aplicar_codigo_repetido_no_borra_productos
+--        BUG: un codigo de barras NO es un producto. QuickBooks tiene 6
+--        codigos puestos en dos productos distintos; agrupar solo por
+--        codigo hacia desaparecer uno de cada par. Ahora la llave es
+--        codigo + nombre.
+--
+--  La funcion de servidor que habla con Intuit esta en
+--  herramientas/gd-quickbooks.ts  (desplegar con verify_jwt APAGADO).
+-- =====================================================================
