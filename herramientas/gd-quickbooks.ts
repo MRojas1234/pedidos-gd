@@ -402,6 +402,20 @@ Deno.serve(async (req) => {
       const deVerdad = cuerpo.de_verdad === true;
       const auth = req.headers.get("Authorization")!;
 
+      // --- FRENO 1: la empresa de pruebas de Intuit NUNCA aplica de verdad ---
+      // Con llaves de Development se conecta una empresa inventada con unos
+      // pocos productos de muestra. Aplicar eso apagaria el catalogo real.
+      if (deVerdad && ENTORNO === "sandbox") {
+        return json({
+          ok: false,
+          productos: 0,
+          error: "Estas conectado a la empresa de PRUEBAS de Intuit (QB_ENTORNO=sandbox). " +
+                 "Aqui solo se puede revisar, nunca aplicar: aplicar los productos de prueba " +
+                 "apagaria el catalogo de verdad. Cuando tengas las llaves de Production, " +
+                 "quita el secreto QB_ENTORNO y vuelve a conectar.",
+        }, 400);
+      }
+
       let acceso;
       try {
         acceso = await accesoFresco();
@@ -430,7 +444,32 @@ Deno.serve(async (req) => {
           p_primera: i === 0,
         });
       }
-      const resumen = await rpc(auth, "gd_qb_aplicar", { p_de_verdad: deVerdad });
+      // --- FRENO 2: si se apagaria casi todo, algo esta mal conectado ---
+      // El caso real que esto ataja: quedarse con las llaves de prueba, o
+      // autorizar una empresa de QuickBooks que no es la suya. Entonces
+      // llegan poquitos productos y "lo que no vino" es casi el catalogo.
+      // Se mide SIEMPRE con un ensayo antes de aplicar.
+      const ensayo = await rpc(auth, "gd_qb_aplicar", { p_de_verdad: false });
+      if (deVerdad && cuerpo.forzar !== true) {
+        const tocados = Number(ensayo?.actualizados ?? 0) + Number(ensayo?.se_apagan ?? 0);
+        const apagar  = Number(ensayo?.se_apagan ?? 0);
+        if (tocados > 0 && apagar / tocados > 0.8) {
+          return json({
+            ok: false,
+            productos: lineas.length,
+            resumen: ensayo,
+            error: `Me freno: se apagarian ${apagar} de ${tocados} productos ` +
+                   `(mas del 80%). QuickBooks solo mando ${lineas.length}. ` +
+                   `Eso casi siempre significa que quedaron puestas las llaves de prueba, ` +
+                   `o que se autorizo una empresa de QuickBooks que no es la tuya. ` +
+                   `Revisa la empresa en el panel antes de seguir.`,
+          }, 400);
+        }
+      }
+
+      const resumen = deVerdad
+        ? await rpc(auth, "gd_qb_aplicar", { p_de_verdad: true })
+        : ensayo;
 
       return json({
         ok: true,
