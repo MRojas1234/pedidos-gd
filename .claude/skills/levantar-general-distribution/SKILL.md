@@ -93,9 +93,13 @@ where name like 'gd\_%'
 order by version;
 ```
 
-**Verifica así:** cuenta las tablas `gd_`. Deben ser 9:
+**Verifica así:** cuenta las tablas `gd_`. Deben ser **11**:
 `gd_productos`, `gd_tiendas`, `gd_pedidos`, `gd_pedido_lineas`, `gd_pedido_historial`,
-`gd_inventario_mov`, `gd_precio_tienda`, `gd_perfiles`, `gd_qb_import`.
+`gd_inventario_mov`, `gd_precio_tienda`, `gd_perfiles`, `gd_qb_import`,
+`gd_qb_conexion` y `gd_qb_oauth_estado`.
+
+Más **2 vistas** (`gd_catalogo`, `gd_tienda_publica`), **10 funciones**, **16 reglas de
+acceso**, **3 disparadores** y el bucket de fotos `gd-fotos`.
 
 ### Fase 2 — Las dos llaves en los archivos
 
