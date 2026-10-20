@@ -485,13 +485,16 @@ function pintaSugerencias(lista){
 
 function buscaTiendas(txt){
   txt = (txt || '').trim();
+  /* Buscar por nombre expone la lista de clientes: solo con sesion de equipo.
+     El tendero no lo necesita, su link ya trae su tienda. */
+  if(!soyDelEquipo()){ pintaSugerencias([]); return; }
   if(txt.length < 2){ pintaSugerencias([]); return; }
   var x = new XMLHttpRequest();
   var e = encodeURIComponent('%' + txt + '%');
-  x.open('GET', SB_URL + '/gd_tienda_publica?select=id,codigo,nombre,ruta' +
+  x.open('GET', SB_URL + '/gd_tiendas?select=id,codigo,nombre,ruta&activo=eq.true' +
                 '&nombre=ilike.' + e + '&order=nombre.asc&limit=8', true);
   x.setRequestHeader('apikey', SB_KEY);
-  x.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
+  x.setRequestHeader('Authorization', 'Bearer ' + tokenDelEquipo());
   x.onreadystatechange = function(){
     if(x.readyState !== 4) return;
     var d = null;
@@ -514,7 +517,7 @@ function eligeTienda(cod){
   el.className = 'tienda fija';
   pintaSugerencias([]);
   m.innerHTML = '&#10003; Pedido para <b>' + s.nombre + '</b>' +
-                '<button class="cambiar" id="cambiarT">cambiar de tienda</button>';
+                (soyDelEquipo() ? '<button class="cambiar" id="cambiarT">cambiar de tienda</button>' : '');
   m.style.display = 'block';
   var b = document.getElementById('cambiarT');
   if(b) b.onclick = sueltaTienda;
@@ -562,7 +565,7 @@ function traePreciosDeLaTienda(cod){
         var nom = document.getElementById('tienda').value || 'esta tienda';
         m.innerHTML = '&#10003; Pedido para <b>' + nom + '</b> &middot; ' + hubo +
                       ' con su propio precio' +
-                      '<button class="cambiar" id="cambiarT">cambiar de tienda</button>';
+                      (soyDelEquipo() ? '<button class="cambiar" id="cambiarT">cambiar de tienda</button>' : '');
         m.style.display = 'block';
         var bb = document.getElementById('cambiarT');
         if(bb) bb.onclick = sueltaTienda;
@@ -624,9 +627,12 @@ function cargaTienda(){
   var c = param('t');
   if(!c) return;
   var x = new XMLHttpRequest();
-  x.open('GET', SB_URL + '/gd_tienda_publica?select=id,nombre&codigo=eq.' + encodeURIComponent(c), true);
+  /* Una sola tienda, y hay que saber su codigo exacto. Antes esto se podia
+     usar para bajarse la lista completa de clientes. */
+  x.open('POST', SB_URL + '/rpc/gd_tienda_por_codigo', true);
   x.setRequestHeader('apikey', SB_KEY);
   x.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
+  x.setRequestHeader('Content-Type', 'application/json');
   x.onreadystatechange = function(){
     if(x.readyState !== 4) return;
     var d = null, el = document.getElementById('tienda'), m = document.getElementById('dsd');
@@ -645,8 +651,9 @@ function cargaTienda(){
       m.innerHTML = 'Ese link no reconoce la tienda. Escribe el nombre a mano.';
       m.style.display = 'block';
     }
+    pintaQuienSoy();
   };
-  try { x.send(null); } catch(e){}
+  try { x.send(JSON.stringify({p_codigo: c})); } catch(e){}
 }
 
 function money(n){ return '$' + (Math.round(n*100)/100).toFixed(2); }
