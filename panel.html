@@ -127,6 +127,14 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 .ex.cero b{color:#6b7280}
 .ex.neg b{color:#b91c1c}
 .upc{font-size:11px;color:#8b929c;font-family:ui-monospace,Menlo,Consolas,monospace}
+.pr .im{position:relative}
+.foto{position:absolute;left:0;top:0;width:52px;height:52px;opacity:0;cursor:pointer}
+.sinfoto{width:52px;height:52px;border-radius:6px;background:#f4f5f7;border:1px dashed #c3c9d2;
+         display:block;text-align:center;line-height:52px;font-size:20px;color:#8b929c}
+.camara{width:52px;height:52px;border-radius:6px;background:#1f2937;color:#fff;border:0;
+        font-size:19px;line-height:52px;padding:0;display:block}
+.subiendo{opacity:.45}
+.listo{outline:2px solid #16a34a;outline-offset:1px;border-radius:6px}
 /* ---- estados del pedido ---- */
 .est{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
      vertical-align:middle;margin-left:6px}
@@ -237,9 +245,12 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
       </div>
       <div class="tiles">
         <div class="tile"><b id="p1">0</b><span id="p1r">en el cat&aacute;logo</span></div>
-        <div class="tile"><b id="p2">0</b><span>sin existencia</span></div>
+        <div class="tile"><b id="p2">0</b><span>sin foto</span></div>
         <div class="tile"><b id="p3">0</b><span>en negativo</span></div>
       </div>
+      <p class="ayuda" style="padding:0 3px;margin:2px 0 0">Toca el cuadrito
+        <b>&#128247;</b> de un producto y se abre la c&aacute;mara. La foto se guarda sola.
+        Aprieta <b>Sin foto</b> para ver nada m&aacute;s los que faltan.</p>
       <input id="pq" placeholder="Buscar producto o c&oacute;digo de barras..." autocomplete="off"
              style="width:100%;padding:12px;font-size:16px;border:1px solid #d5d9df;border-radius:8px;margin:11px 0 0">
       <div class="chips" id="pchips"></div>
@@ -514,6 +525,102 @@ function nuevaTienda(){
       if(m.indexOf('duplicate') >= 0 || m.indexOf('unique') >= 0) m = 'Ese c&oacute;digo ya lo usa otra tienda.';
       aviso('mTienda', m, false);
     });
+}
+
+/* ---- fotos tomadas con el celular ----
+   El telefono saca fotos de 3 o 4 MB. Subirlas asi llenaria el deposito y
+   la app de los repartidores tardaria en pintar. Por eso ANTES de subir se
+   achica a 700px de lado largo y se guarda como JPG: queda en ~60 KB y se
+   ve igual de bien en el catalogo. */
+var FOTO_LADO = 700, FOTO_CALIDAD = 0.82;
+
+function achica(archivo, listo, falla){
+  var lector = new FileReader();
+  lector.onerror = falla;
+  lector.onload = function(){
+    var im = new Image();
+    im.onerror = falla;
+    im.onload = function(){
+      var w = im.naturalWidth, h = im.naturalHeight;
+      var r = Math.min(1, FOTO_LADO / Math.max(w, h));
+      var cw = Math.round(w * r), ch = Math.round(h * r);
+      var c = document.createElement('canvas');
+      c.width = cw; c.height = ch;
+      var g = c.getContext('2d');
+      g.fillStyle = '#ffffff';            /* los PNG con transparencia saldrian negros */
+      g.fillRect(0, 0, cw, ch);
+      g.drawImage(im, 0, 0, cw, ch);
+      if(c.toBlob) c.toBlob(function(b){ b ? listo(b) : falla(); }, 'image/jpeg', FOTO_CALIDAD);
+      else falla();
+    };
+    im.src = lector.result;
+  };
+  lector.readAsDataURL(archivo);
+}
+
+function subeFoto(prodId, blob, listo, falla){
+  var ruta = 'gd-fotos/' + prodId + '.jpg';
+  var x = new XMLHttpRequest();
+  /* upsert: si ya habia foto de ese producto, la reemplaza */
+  x.open('POST', SB + '/storage/v1/object/' + ruta, true);
+  x.setRequestHeader('apikey', KEY);
+  x.setRequestHeader('Authorization', 'Bearer ' + tok);
+  x.setRequestHeader('Content-Type', 'image/jpeg');
+  x.setRequestHeader('x-upsert', 'true');
+  x.onreadystatechange = function(){
+    if(x.readyState !== 4) return;
+    if(x.status >= 200 && x.status < 300){
+      /* el ?v= obliga al telefono a pedir la nueva y no la que ya tenia guardada */
+      listo(SB + '/storage/v1/object/public/' + ruta + '?v=' + (new Date()).getTime());
+    } else if(x.status === 401){ falla(401); }
+    else { falla(x.status); }
+  };
+  x.send(blob);
+}
+
+function guardaFoto(prodId, url, listo, falla){
+  req('PATCH', SB + '/rest/v1/gd_productos?id=eq.' + prodId,
+      {foto: url}, true, listo, falla);
+}
+
+function tomoFoto(ev){
+  var inp = ev.target;
+  var prodId = inp.getAttribute('data-prod');
+  var archivo = inp.files && inp.files[0];
+  if(!archivo) return;
+  var caja = $('im_' + prodId);
+  if(caja) caja.className = 'im subiendo';
+
+  function mal(cod){
+    if(caja) caja.className = 'im';
+    if(cod === 401){ refresca(function(){}, salir); aviso('mProd','Tu sesi&oacute;n venci&oacute;. Entra otra vez.', false); return; }
+    aviso('mProd', 'No se pudo subir la foto' + (cod ? ' (' + cod + ')' : '') +
+                   '. Int&eacute;ntalo otra vez.', false);
+  }
+
+  achica(archivo, function(blob){
+    subeFoto(prodId, blob, function(url){
+      guardaFoto(prodId, url, function(){
+        if(caja){
+          caja.className = 'im listo';
+          caja.innerHTML = '<img src="' + url + '" alt="">' +
+            '<input type="file" accept="image/*" capture="environment" class="foto" data-prod="' + prodId + '">';
+          caja.querySelector('.foto').onchange = tomoFoto;
+          setTimeout(function(){ if(caja) caja.className = 'im'; }, 1600);
+        }
+        FOTOS_HECHAS++;
+        aviso('mProd', 'Foto guardada. Llevas <b>' + FOTOS_HECHAS + '</b> en esta sesi&oacute;n.', true);
+        resumenProd();
+      }, mal);
+    }, mal);
+  }, function(){ mal(0); });
+}
+
+var FOTOS_HECHAS = 0;
+
+function amarraCamaras(){
+  var c = document.querySelectorAll('#listaProd .foto'), i;
+  for(i = 0; i < c.length; i++) c[i].onchange = tomoFoto;
 }
 
 /* ---- QuickBooks conectado por API ----
@@ -799,13 +906,14 @@ function qbArranca(){
 }
 
 /* ---- productos ---- */
-var PCAT = '', PVER = 'activos';   /* 'activos' o 'apagados' */
+var PCAT = '', PVER = 'activos', PSINFOTO = false;
 
 function cargaProductos(){
   var q = $('pq').value.trim();
   var u = SB + '/rest/v1/gd_productos?select=id,nombre,categoria,precio,existencia,foto,upc,activo' +
           '&order=nombre.asc&limit=60' +
-          (PVER === 'apagados' ? '&activo=eq.false' : '&activo=eq.true');
+          (PVER === 'apagados' ? '&activo=eq.false' : '&activo=eq.true') +
+          (PSINFOTO ? '&or=(foto.is.null,foto.eq.)' : '');
   if(q){
     var e = encodeURIComponent('%' + q + '%');
     u += '&or=(nombre.ilike.' + e + ',upc.ilike.' + e + ')';
@@ -841,7 +949,7 @@ function resumenProd(){
   }
   if($('p1r')) $('p1r').innerHTML = (PVER === 'apagados') ? 'apagados' : 'en el cat&aacute;logo';
   cuenta('', 'p1');
-  cuenta('&existencia=eq.0', 'p2');
+  cuenta('&or=(foto.is.null,foto.eq.)', 'p2');
   cuenta('&existencia=lt.0', 'p3');
 }
 
@@ -854,7 +962,13 @@ function pintaProductos(d){
     var p = d[i], e = p.existencia || 0;
     var cls = e > 0 ? 'ok' : (e < 0 ? 'neg' : 'cero');
     h += '<div class="pr">';
-    h += '<div class="im">' + (p.foto ? '<img src="' + p.foto + '" loading="lazy" alt="">' : '<span class="im"></span>') + '</div>';
+    /* La foto es tambien el boton: se toca y se abre la camara. */
+    h += '<div class="im" id="im_' + p.id + '">';
+    h +=   p.foto ? '<img src="' + p.foto + '" loading="lazy" alt="">'
+                  : '<span class="sinfoto">&#128247;</span>';
+    h +=   '<input type="file" accept="image/*" capture="environment" class="foto" ' +
+           'data-prod="' + p.id + '">';
+    h += '</div>';
     h += '<div class="nf"><b>' + p.nombre + '</b>';
     h += '<div class="meta">' + (p.categoria || 'Sin categor&iacute;a') + ' &middot; $' + (p.precio || 0) + '</div>';
     if(p.upc) h += '<div class="upc">' + p.upc + '</div>';
@@ -863,6 +977,7 @@ function pintaProductos(d){
     h += '</div>';
   }
   $('listaProd').innerHTML = h;
+  amarraCamaras();
 }
 
 function pchips(){
@@ -872,8 +987,10 @@ function pchips(){
     h += '<button class="chip' + (PCAT===cats[i]?' on':'') + '" data-pc="' + cats[i] + '">' +
          (cats[i] || 'Todo') + '</button>';
   }
+  h += '<button class="chip' + (PSINFOTO ? ' on' : '') +
+       '" data-pf="1" style="margin-left:10px">Sin foto</button>';
   h += '<button class="chip' + (PVER === 'apagados' ? ' on' : '') +
-       '" data-pv="1" style="margin-left:10px">Apagados</button>';
+       '" data-pv="1">Apagados</button>';
   $('pchips').innerHTML = h;
 }
 
@@ -1117,6 +1234,10 @@ document.addEventListener('click', function(e){
       var ef = el.getAttribute('data-e');
       if(ef !== null && ef !== undefined && el.className.indexOf('chip') >= 0){
         ESTADO = ef; chips(); carga(); return;
+      }
+      var pf = el.getAttribute('data-pf');
+      if(pf && el.className.indexOf('chip') >= 0){
+        PSINFOTO = !PSINFOTO; pchips(); cargaProductos(); return;
       }
       var pv = el.getAttribute('data-pv');
       if(pv && el.className.indexOf('chip') >= 0){
