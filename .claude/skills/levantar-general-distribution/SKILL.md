@@ -83,18 +83,20 @@ gd_qb_refresh_rpc                        gd_precios_por_tienda
                                          gd_cerrar_la_lista_de_tiendas
 ```
 
-**El SQL ya viene en el repositorio**, en `CREAR-LA-BASE-DE-DATOS.sql`, en la raíz.
-Se pega completo en Supabase -> SQL Editor -> New query -> Run. Son 41,681 caracteres
-y **no contiene ni un dato**: ni clientes, ni precios, ni pedidos.
+### De qué está hecho el instalador
 
-No son las 20 migraciones una por una: las funciones del refresh van en su **versión
-final**, la que corre hoy. Seis de las migraciones se reemplazan entre sí y no aportan
-nada a una instalación nueva. Se comprobó carácter por carácter (md5) contra la base, y
-el inventario de lo que crea cuadra exacto con lo que existe: 11 tablas, 2 vistas,
-10 funciones, 12 reglas de acceso, 15 índices.
+Son **41,681 caracteres** y **no contiene ni un dato**: ni clientes, ni precios, ni
+pedidos. Solo la estructura.
 
-Si algún día necesitas las 20 migraciones literales (para auditar, no para instalar),
-salen del proyecto donde corre el sistema con:
+Las funciones del refresh van en su **versión final**, la que corre hoy, no reconstruidas
+por capas. Se comprobó **carácter por carácter** (md5) contra la base donde el sistema
+funciona, y el inventario de lo que crea cuadra exacto con lo que existe ahí.
+
+**Lo que no se pudo hacer:** correrlo en una base vacía de verdad — las ramas de prueba de
+Supabase piden plan Pro. Si al darle Run sale un error, sería de **orden**, no de
+contenido: se acomoda y sigue.
+
+Para sacar las 20 migraciones literales del proyecto donde corre el sistema:
 
 ```sql
 select version, name, array_to_string(statements, ';')
