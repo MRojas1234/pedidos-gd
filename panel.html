@@ -236,7 +236,7 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
         <div id="qbRes"></div>
       </div>
       <div class="tiles">
-        <div class="tile"><b id="p1">0</b><span>productos</span></div>
+        <div class="tile"><b id="p1">0</b><span id="p1r">en el cat&aacute;logo</span></div>
         <div class="tile"><b id="p2">0</b><span>sin existencia</span></div>
         <div class="tile"><b id="p3">0</b><span>en negativo</span></div>
       </div>
@@ -799,12 +799,13 @@ function qbArranca(){
 }
 
 /* ---- productos ---- */
-var PCAT = '';
+var PCAT = '', PVER = 'activos';   /* 'activos' o 'apagados' */
 
 function cargaProductos(){
   var q = $('pq').value.trim();
   var u = SB + '/rest/v1/gd_productos?select=id,nombre,categoria,precio,existencia,foto,upc,activo' +
-          '&order=nombre.asc&limit=60';
+          '&order=nombre.asc&limit=60' +
+          (PVER === 'apagados' ? '&activo=eq.false' : '&activo=eq.true');
   if(q){
     var e = encodeURIComponent('%' + q + '%');
     u += '&or=(nombre.ilike.' + e + ',upc.ilike.' + e + ')';
@@ -820,7 +821,10 @@ function cargaProductos(){
 }
 
 function resumenProd(){
-  var base = SB + '/rest/v1/gd_productos?select=id';
+  /* Antes contaba TODOS los renglones, apagados incluidos: por eso salian
+     1,811 cuando el catalogo de verdad tiene 775. */
+  var base = SB + '/rest/v1/gd_productos?select=id' +
+             (PVER === 'apagados' ? '&activo=eq.false' : '&activo=eq.true');
   function cuenta(filtro, destino){
     var x = new XMLHttpRequest();
     x.open('GET', base + filtro + '&limit=1', true);
@@ -835,6 +839,7 @@ function resumenProd(){
     };
     x.send(null);
   }
+  if($('p1r')) $('p1r').innerHTML = (PVER === 'apagados') ? 'apagados' : 'en el cat&aacute;logo';
   cuenta('', 'p1');
   cuenta('&existencia=eq.0', 'p2');
   cuenta('&existencia=lt.0', 'p3');
@@ -861,11 +866,14 @@ function pintaProductos(d){
 }
 
 function pchips(){
-  var cats = ['', 'Dulces', 'Bebidas', 'Abarrotes', 'Botanas'], h = '', i;
+  /* Estas son las categorias que de verdad usa QuickBooks. */
+  var cats = ['', 'Dulces', 'Bebidas', 'Snacks', 'Abarrotes', 'Helados'], h = '', i;
   for(i=0;i<cats.length;i++){
     h += '<button class="chip' + (PCAT===cats[i]?' on':'') + '" data-pc="' + cats[i] + '">' +
          (cats[i] || 'Todo') + '</button>';
   }
+  h += '<button class="chip' + (PVER === 'apagados' ? ' on' : '') +
+       '" data-pv="1" style="margin-left:10px">Apagados</button>';
   $('pchips').innerHTML = h;
 }
 
@@ -1110,9 +1118,14 @@ document.addEventListener('click', function(e){
       if(ef !== null && ef !== undefined && el.className.indexOf('chip') >= 0){
         ESTADO = ef; chips(); carga(); return;
       }
+      var pv = el.getAttribute('data-pv');
+      if(pv && el.className.indexOf('chip') >= 0){
+        PVER = (PVER === 'apagados') ? 'activos' : 'apagados';
+        pchips(); cargaProductos(); return;
+      }
       var pc = el.getAttribute('data-pc');
       if(pc !== null && pc !== undefined && el.className.indexOf('chip') >= 0){
-        PCAT = pc; pchips(); cargaProductos(); return;
+        PCAT = pc; PVER = 'activos'; pchips(); cargaProductos(); return;
       }
     }
     el = el.parentNode;
