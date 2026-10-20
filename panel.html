@@ -135,6 +135,19 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
         font-size:19px;line-height:52px;padding:0;display:block}
 .subiendo{opacity:.45}
 .listo{outline:2px solid #16a34a;outline-offset:1px;border-radius:6px}
+.pz{display:table-cell;vertical-align:middle;text-align:right;width:104px;white-space:nowrap}
+.pin{width:70px;padding:7px 6px;font-size:16px;font-weight:700;text-align:right;
+     border:1px solid #d5d9df;border-radius:7px;color:#0f7b3f;background:#fff}
+.pin:focus{outline:2px solid #1f2937;outline-offset:1px}
+.pin.guardado{border-color:#16a34a;background:#f0fdf4}
+.sig{color:#0f7b3f;font-weight:700;font-size:15px;margin-right:1px}
+.cand{border:0;background:transparent;font-size:13px;padding:3px 0 0;width:auto;
+      display:block;margin-left:auto;cursor:pointer;opacity:.35}
+.cand.on{opacity:1}
+.exi{font-weight:700}
+.exi.ok{color:#0f7b3f}
+.exi.cero{color:#6b7280}
+.exi.neg{color:#b91c1c}
 /* ---- estados del pedido ---- */
 .est{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
      vertical-align:middle;margin-left:6px}
@@ -250,7 +263,9 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
       </div>
       <p class="ayuda" style="padding:0 3px;margin:2px 0 0">Toca el cuadrito
         <b>&#128247;</b> de un producto y se abre la c&aacute;mara. La foto se guarda sola.
-        Aprieta <b>Sin foto</b> para ver nada m&aacute;s los que faltan.</p>
+        Aprieta <b>Sin foto</b> para ver nada m&aacute;s los que faltan.<br>
+        El <b>precio</b> de la derecha se puede escribir encima. Al cambiarlo le queda
+        <b>&#128274; candado</b>: QuickBooks ya no te lo pisa.</p>
       <input id="pq" placeholder="Buscar producto o c&oacute;digo de barras..." autocomplete="off"
              style="width:100%;padding:12px;font-size:16px;border:1px solid #d5d9df;border-radius:8px;margin:11px 0 0">
       <div class="chips" id="pchips"></div>
@@ -525,6 +540,80 @@ function nuevaTienda(){
       if(m.indexOf('duplicate') >= 0 || m.indexOf('unique') >= 0) m = 'Ese c&oacute;digo ya lo usa otra tienda.';
       aviso('mTienda', m, false);
     });
+}
+
+/* ---- cambiar el precio desde el panel ----
+   Al cambiar un precio aqui se le pone CANDADO al producto: el refresh de
+   QuickBooks deja de tocarle el precio (pero le sigue trayendo nombre,
+   categoria y codigo de barras). Asi un descuento no se borra solo el
+   lunes que Manuel refresque. */
+
+function aNumero(s){
+  var n = parseFloat(String(s).replace(/[^0-9.,-]/g, '').replace(',', '.'));
+  return isNaN(n) ? null : Math.round(n * 100) / 100;
+}
+
+function guardaPrecio(inp){
+  var id = inp.getAttribute('data-prod');
+  var n  = aNumero(inp.value);
+  if(n === null || n < 0){
+    aviso('mProd', 'Ese precio no se entiende. Escribe s&oacute;lo el n&uacute;mero, por ejemplo 27.99', false);
+    return;
+  }
+  if(n === aNumero(inp.getAttribute('data-antes'))) return;   /* no cambio nada */
+  inp.disabled = true;
+  req('PATCH', SB + '/rest/v1/gd_productos?id=eq.' + id,
+      {precio: n, precio_fijo: true}, true,
+      function(){
+        inp.disabled = false;
+        inp.value = n.toFixed(2);
+        inp.setAttribute('data-antes', n.toFixed(2));
+        inp.className = 'pin guardado';
+        setTimeout(function(){ inp.className = 'pin'; }, 1500);
+        var b = document.querySelector('[data-cand="' + id + '"]');
+        if(b){ b.className = 'cand on'; b.setAttribute('data-fijo','1');
+               b.innerHTML = '&#128274; fijo';
+               b.title = 'Precio con candado: QuickBooks no lo cambia'; }
+        aviso('mProd', 'Precio guardado en <b>$' + n.toFixed(2) +
+              '</b>. Le puse candado: QuickBooks ya no te lo cambia.', true);
+      },
+      function(st){
+        inp.disabled = false;
+        if(st === 401){ refresca(function(){ guardaPrecio(inp); }, salir); return; }
+        aviso('mProd', 'No se pudo guardar el precio. Int&eacute;ntalo otra vez.', false);
+      });
+}
+
+function cambiaCandado(b){
+  var id   = b.getAttribute('data-cand');
+  var fijo = b.getAttribute('data-fijo') === '1';
+  req('PATCH', SB + '/rest/v1/gd_productos?id=eq.' + id,
+      {precio_fijo: !fijo}, true,
+      function(){
+        b.setAttribute('data-fijo', fijo ? '0' : '1');
+        b.className = fijo ? 'cand' : 'cand on';
+        b.innerHTML = fijo ? '&#128275; libre' : '&#128274; fijo';
+        aviso('mProd', fijo
+          ? 'Candado quitado. En el pr&oacute;ximo refresh, QuickBooks vuelve a mandar en ese precio.'
+          : 'Candado puesto. QuickBooks ya no le cambia el precio a ese producto.', true);
+      },
+      function(st){
+        if(st === 401){ refresca(function(){ cambiaCandado(b); }, salir); return; }
+        aviso('mProd', 'No se pudo cambiar el candado.', false);
+      });
+}
+
+function amarraPrecios(){
+  var ins = document.querySelectorAll('#listaProd .pin'), i;
+  for(i = 0; i < ins.length; i++){
+    ins[i].setAttribute('data-antes', ins[i].value);
+    ins[i].onchange = function(){ guardaPrecio(this); };
+    ins[i].onblur   = function(){ guardaPrecio(this); };
+    /* Enter en el telefono cierra el teclado y guarda. */
+    ins[i].onkeyup  = function(ev){ if(ev.keyCode === 13) this.blur(); };
+  }
+  var bs = document.querySelectorAll('#listaProd .cand');
+  for(i = 0; i < bs.length; i++) bs[i].onclick = function(){ cambiaCandado(this); };
 }
 
 /* ---- fotos tomadas con el celular ----
@@ -910,7 +999,7 @@ var PCAT = '', PVER = 'activos', PSINFOTO = false;
 
 function cargaProductos(){
   var q = $('pq').value.trim();
-  var u = SB + '/rest/v1/gd_productos?select=id,nombre,categoria,precio,existencia,foto,upc,activo' +
+  var u = SB + '/rest/v1/gd_productos?select=id,nombre,categoria,precio,existencia,foto,upc,activo,precio_fijo' +
           '&order=nombre.asc&limit=60' +
           (PVER === 'apagados' ? '&activo=eq.false' : '&activo=eq.true') +
           (PSINFOTO ? '&or=(foto.is.null,foto.eq.)' : '');
@@ -970,14 +1059,25 @@ function pintaProductos(d){
            'data-prod="' + p.id + '">';
     h += '</div>';
     h += '<div class="nf"><b>' + p.nombre + '</b>';
-    h += '<div class="meta">' + (p.categoria || 'Sin categor&iacute;a') + ' &middot; $' + (p.precio || 0) + '</div>';
+    /* El inventario va aqui arriba, junto a la categoria. */
+    h += '<div class="meta">' + (p.categoria || 'Sin categor&iacute;a') +
+         ' &middot; <span class="exi ' + cls + '">' + e + '</span> en bodega</div>';
     if(p.upc) h += '<div class="upc">' + p.upc + '</div>';
     h += '</div>';
-    h += '<div class="ex ' + cls + '"><b>' + e + '</b><span class="meta">en bodega</span></div>';
+    /* El precio, a la derecha y editable. */
+    h += '<div class="pz"><span class="sig">$</span>' +
+         '<input class="pin" type="text" inputmode="decimal" value="' +
+         Number(p.precio || 0).toFixed(2) + '" data-prod="' + p.id + '">' +
+         '<button class="cand' + (p.precio_fijo ? ' on' : '') + '" data-cand="' + p.id +
+         '" data-fijo="' + (p.precio_fijo ? '1' : '0') + '" title="' +
+         (p.precio_fijo ? 'Precio con candado: QuickBooks no lo cambia' :
+                          'Sigue el precio de QuickBooks') + '">' +
+         (p.precio_fijo ? '&#128274; fijo' : '&#128275; libre') + '</button></div>';
     h += '</div>';
   }
   $('listaProd').innerHTML = h;
   amarraCamaras();
+  amarraPrecios();
 }
 
 function pchips(){
