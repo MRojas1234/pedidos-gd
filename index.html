@@ -530,6 +530,7 @@ function eligeTienda(cod){
 function sueltaTienda(){
   var el = document.getElementById('tienda'), m = document.getElementById('dsd');
   TIENDA_ID = null; CODIGO_TIENDA = ''; PRECIOS_TIENDA = {};
+  try { localStorage.removeItem('gd_tienda_id'); localStorage.removeItem('gd_tienda_cod'); } catch(e){}
   el.readOnly = false;
   el.className = 'tienda';
   el.value = '';
@@ -661,6 +662,10 @@ function save(){
   try{
     localStorage.setItem('gd_cart', JSON.stringify(cart));
     localStorage.setItem('gd_tienda', document.getElementById('tienda').value);
+    /* Sin esto se recuperaba el NOMBRE pero no la identidad de la tienda:
+       los precios de ese cliente no se cargaban y nadie se enteraba. */
+    localStorage.setItem('gd_tienda_id', TIENDA_ID || '');
+    localStorage.setItem('gd_tienda_cod', CODIGO_TIENDA || '');
     localStorage.setItem('gd_nota', document.getElementById('nota').value);
   }catch(e){}
 }
@@ -668,6 +673,13 @@ function load(){
   try{
     var c = localStorage.getItem('gd_cart'); if(c) cart = JSON.parse(c) || {};
     var t = localStorage.getItem('gd_tienda'); if(t) document.getElementById('tienda').value = t;
+    var ti = localStorage.getItem('gd_tienda_id');
+    var tc = localStorage.getItem('gd_tienda_cod');
+    if(ti && tc){
+      TIENDA_ID = ti; CODIGO_TIENDA = tc;
+      var el0 = document.getElementById('tienda');
+      el0.readOnly = true; el0.className = 'tienda fija';
+    }
     var n = localStorage.getItem('gd_nota'); if(n) document.getElementById('nota').value = n;
   }catch(e){ cart = {}; }
 }
@@ -853,6 +865,12 @@ function onTienda(){
 /* onkeyup solo NO basta: se cae con pegado, autocompletado y dictado por voz. */
 tEl.onkeyup = onTienda; tEl.oninput = onTienda; tEl.onchange = onTienda;
 tEl.onfocus = function(){ if(!tEl.readOnly && tEl.value.trim().length >= 2) buscaTiendas(tEl.value); };
+/* Tocar el nombre de la tienda es lo natural para cambiarla. Antes no
+   hacia nada y era un callejon sin salida. */
+tEl.onclick = function(){
+  if(!tEl.readOnly) return;
+  if(confirm('\u00bfCambiar a otra tienda?\n\nLo que lleves en el pedido se conserva.')) sueltaTienda();
+};
 var nEl = document.getElementById('nota');
 nEl.onkeyup = save; nEl.oninput = save; nEl.onchange = save;
 document.getElementById('vp').onclick = function(){ lines(); document.getElementById('sheet').className = 'sheet on'; };
@@ -875,6 +893,9 @@ document.getElementById('wa').onclick = function(){
 document.getElementById('nuevo').onclick = function(){
   cart = {}; save(); paintBar(); render();
   document.getElementById('nota').value = ''; save();
+  /* Otro pedido, en una ruta, es OTRO CLIENTE. Se suelta la tienda para
+     que pueda escoger la siguiente sin pelearse con el campo. */
+  if(TIENDA_ID) sueltaTienda();
   document.getElementById('aviso').style.display = 'none';
   document.getElementById('nuevo').style.display = 'none';
   document.getElementById('sheet').className = 'sheet';
@@ -894,6 +915,9 @@ document.getElementById('cl').onclick = function(){
   }
 };
 load(); chips(); render(); paintBar(); pintaPend(); vaciarCola(); cargaTienda();
+/* Si veniamos de una tienda ya escogida, se le vuelven a pedir SUS precios.
+   Antes se quedaba el nombre y los precios eran los generales. */
+if(CODIGO_TIENDA && !param('t')) traePreciosDeLaTienda(CODIGO_TIENDA);
 traeCatalogo();
 </script>
 </body>
