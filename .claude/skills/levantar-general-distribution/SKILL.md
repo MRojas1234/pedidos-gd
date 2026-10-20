@@ -59,12 +59,15 @@ resultado real en la base o en la pantalla. Los sistemas dicen "hecho" y mienten
 
 ### Fase 1 — La base de datos
 
-El registro de verdad **no es `esquema.sql`**: son las **migraciones de Supabase**. Son 20
-con prefijo `gd_`, más dos sueltas, y el orden importa porque varias arreglan a las
-anteriores. `esquema.sql` sólo trae las tres tablas originales de pedidos y se quedó
-atrás en septiembre.
+**Se pega `CREAR-LA-BASE-DE-DATOS.sql` en Supabase → SQL Editor → New query → Run.**
+Eso es todo: un solo Run y queda la base entera.
 
-Los nombres, en orden de aplicación:
+⚠️ **No uses `esquema.sql`.** Es de septiembre y sólo trae 3 de las 11 tablas: la base
+quedaría a medias y la app no funcionaría. Se conserva como histórico, con su aviso.
+
+El historial de cómo se llegó aquí son 20 migraciones con prefijo `gd_`, más dos sueltas.
+Sirven para auditar, **no para instalar** — varias se reemplazan entre sí. Sus nombres, en
+orden:
 
 ```
 gd_pedidos_general_distribution          gd_qb_aplicar_fix_producto_id
@@ -80,17 +83,17 @@ gd_qb_refresh_rpc                        gd_precios_por_tienda
                                          gd_cerrar_la_lista_de_tiendas
 ```
 
-**El SQL ya viene en el repositorio**, en `CREAR-LA-BASE-DE-DATOS.sql`, en la raiz.
+**El SQL ya viene en el repositorio**, en `CREAR-LA-BASE-DE-DATOS.sql`, en la raíz.
 Se pega completo en Supabase -> SQL Editor -> New query -> Run. Son 41,681 caracteres
 y **no contiene ni un dato**: ni clientes, ni precios, ni pedidos.
 
-No son las 20 migraciones una por una: las funciones del refresh van en su **version
-final**, la que corre hoy. Seis de las migraciones se reemplazan entre si y no aportan
-nada a una instalacion nueva. Se comprobo caracter por caracter (md5) contra la base, y
+No son las 20 migraciones una por una: las funciones del refresh van en su **versión
+final**, la que corre hoy. Seis de las migraciones se reemplazan entre sí y no aportan
+nada a una instalación nueva. Se comprobó carácter por carácter (md5) contra la base, y
 el inventario de lo que crea cuadra exacto con lo que existe: 11 tablas, 2 vistas,
-10 funciones, 12 reglas de acceso, 15 indices.
+10 funciones, 12 reglas de acceso, 15 índices.
 
-Si algun dia necesitas las 20 migraciones literales (para auditar, no para instalar),
+Si algún día necesitas las 20 migraciones literales (para auditar, no para instalar),
 salen del proyecto donde corre el sistema con:
 
 ```sql
@@ -106,8 +109,9 @@ order by version;
 `gd_inventario_mov`, `gd_precio_tienda`, `gd_perfiles`, `gd_qb_import`,
 `gd_qb_conexion` y `gd_qb_oauth_estado`.
 
-Más **2 vistas** (`gd_catalogo`, `gd_tienda_publica`), **10 funciones**, **16 reglas de
-acceso**, **3 disparadores** y el bucket de fotos `gd-fotos`.
+Más **2 vistas** (`gd_catalogo`, `gd_tienda_publica`), **10 funciones**, **12 reglas de
+acceso** en las tablas (y 3 más para las fotos), **15 índices**, **3 disparadores** y el
+bucket `gd-fotos`.
 
 ### Fase 2 — Las dos llaves en los archivos
 
@@ -221,11 +225,13 @@ al catálogo.
 
 - **Los clientes todavía no se sincronizan desde QuickBooks.** Manuel mantiene teléfonos y
   direcciones directo en QuickBooks y quiere que bajen solos. Es el siguiente trabajo.
-- **454 productos sin foto.** Se midió: de las fuentes automáticas se alcanzó 41%. Lo que
+- **453 productos sin foto** (eran 454; bajó uno cuando Manuel subió la primera con la
+  cámara del panel). Se midió: de las fuentes automáticas se alcanzó 41%. Lo que
   falta se resuelve con fotos de bodega — por eso existe la cámara en el panel.
 - **179 productos sin código de barras** en QuickBooks. No se inventan: los corrige Manuel.
 - **`LM Paleta Cookies and Cream`** tiene código de 9 dígitos (`677800007`) donde sus ocho
   hermanos tienen 10 que empiezan con `6777800`. Sospechoso, sin confirmar. Pendiente de él.
 - **Faltan los escáneres de código de barras.** No se han pedido.
-- **`esquema.sql` quedó atrás** en septiembre. Si lo vas a usar, actualízalo primero contra
-  las migraciones reales.
+- **Nada pendiente con la documentación.** `CLAUDE.md`, `TRASPASO.md` y `esquema.sql` se
+  pusieron al día el 20 de octubre. `esquema.sql` se conserva como histórico y trae un
+  aviso arriba: **no uses ese para instalar**, usa `CREAR-LA-BASE-DE-DATOS.sql`.
