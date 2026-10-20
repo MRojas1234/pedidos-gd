@@ -169,3 +169,14 @@ create policy gd_perfiles_dueno_actualiza
 --  La funcion de servidor que habla con Intuit esta en
 --  herramientas/gd-quickbooks.ts  (desplegar con verify_jwt APAGADO).
 -- =====================================================================
+--
+--    gd_fusionado_no_revive
+--        BUG: un duplicado fusionado revivia en el siguiente refresh,
+--        porque seguia teniendo el mismo codigo y nombre que su gemelo.
+--        La limpieza se deshacia sola. Ahora lleva fusionado_en y el
+--        refresh lo salta.
+--
+--  HALLAZGO que vale mas que el codigo: en QuickBooks el NOMBRE del
+--  producto es unico (775 de 775) y el CODIGO DE BARRAS no lo es (6
+--  codigos puestos en dos productos distintos). La llave confiable para
+--  emparejar y para detectar duplicados es el NOMBRE.
