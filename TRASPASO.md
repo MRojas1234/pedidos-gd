@@ -1,6 +1,17 @@
 # Traspaso a Manuel — para que trabaje con su propio Claude Code
 
-_Escrito el 28 de septiembre de 2026._
+_Escrito el 28 de septiembre de 2026. **Revisado el 20 de octubre.**_
+
+> ### ⚠️ Lee esto primero
+>
+> Este documento sigue sirviendo para entender **por qué** hay que separar las cuentas, y
+> los pasos de GitHub y Supabase siguen siendo buenos. Pero la ruta completa y al día
+> vive en el **Skill**: `.claude/skills/levantar-general-distribution/`. Esa es la que hay
+> que seguir, porque trae la verificación de cada paso y los errores ya pagados.
+>
+> Lo que cambió desde septiembre: el catálogo ya **no** sale de Shopify sino de
+> **QuickBooks** (775 productos), la base pasó de **3 tablas a 11**, y el instalador ya
+> **no** es `esquema.sql` sino `CREAR-LA-BASE-DE-DATOS.sql`.
 
 Hoy la app funciona, pero **vive en las cuentas de María**. Este documento es la lista
 exacta para pasarla a las de Manuel, en orden, sin que se rompa nada.
@@ -75,15 +86,27 @@ Que **guarde bien** dos datos de **Settings → API**:
 ## Paso 4 — Crear las tablas
 
 En Supabase → **SQL Editor → New query**, pegar completo el archivo
-[`esquema.sql`](esquema.sql) que está en este mismo repositorio, y darle **Run**.
+[`CREAR-LA-BASE-DE-DATOS.sql`](CREAR-LA-BASE-DE-DATOS.sql) y darle **Run**.
 
-Eso crea las tres tablas, las reglas de acceso y los disparadores. **No hay que capturar
-nada a mano.**
+Eso crea las **11 tablas**, las 2 vistas, las 10 funciones, las reglas de acceso, los
+disparadores y el lugar de las fotos. **No hay que capturar nada a mano.**
 
-> **Los pedidos viejos no se van solos.** Al 28 de septiembre de 2026 solo había **un
-> pedido real**, así que lo más simple es empezar limpio. Si para cuando se haga el
-> traspaso ya hay muchos, hay que exportarlos de la base de María e importarlos — eso
-> lo puede hacer su Claude, pero **hay que pedírselo**: no ocurre solo.
+> **NO uses `esquema.sql`.** Es de septiembre y sólo trae tres tablas: la base quedaría a
+> medias y la app no funcionaría. Se conserva como histórico, con su aviso adentro.
+
+**Comprueba antes de seguir:** cuenta las tablas `gd_`. Deben ser **11**.
+
+> **Los pedidos viejos no se van solos, y se decidió NO moverlos.** Al 20 de octubre hay
+> **24 pedidos**, 865 clientes y 1,154 movimientos de inventario en la base de María.
+>
+> **La salida buena no es mover los datos: es no necesitarlos.** El catálogo y los
+> clientes de Manuel salen de **su propio QuickBooks**, así que su proyecto nuevo se llena
+> de su propia fuente. Lo único que se quedaría atrás son esos 24 pedidos y unos
+> movimientos que de todos modos iba a recontar.
+>
+> Y hay una razón de peso: sacar esos datos por una puerta temporal en la base **habría
+> expuesto los 865 clientes con nombre, teléfono y dirección**. Si algún día de verdad
+> hacen falta, los baja **una persona** desde el panel de Supabase, con María presente.
 
 ## Paso 5 — Cambiar los dos datos en los archivos
 

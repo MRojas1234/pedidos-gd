@@ -1,3 +1,27 @@
+-- #############################################################################
+--
+--   ESTE ARCHIVO YA NO ES EL INSTALADOR.  Se conserva como HISTORICO.
+--
+--   Para levantar la base usa:   CREAR-LA-BASE-DE-DATOS.sql
+--
+--   Por que: esto es del 28 de septiembre de 2026 y solo trae las TRES tablas
+--   de pedidos. Hoy el sistema tiene ONCE tablas, dos vistas y diez funciones:
+--   productos, tiendas, inventario, estados del pedido, precios por tienda,
+--   las fotos y la conexion con QuickBooks.
+--
+--   Si corres esto en un proyecto nuevo, la base queda A MEDIAS y la app no
+--   va a funcionar: le van a faltar el catalogo, los clientes y el refresh.
+--
+--   Tampoco esta mal lo que dice. Esta INCOMPLETO. Las decisiones que explica
+--   (el buzon de pedidos, el 409 que es exito, el gafete, por que no hay
+--   DELETE) siguen siendo ciertas y por eso vale leerlo.
+--
+--   La nota de abajo, la que lista las migraciones, tambien se quedo corta:
+--   le faltan las ultimas cuatro (fotos, precios por tienda, el candado y el
+--   cierre de la lista de clientes).
+--
+-- #############################################################################
+
 -- ============================================================================
 --  General Distribution — la base de datos completa, desde cero.
 --  Se pega tal cual en: Supabase → SQL Editor → New query → Run.
