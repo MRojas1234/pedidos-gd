@@ -180,3 +180,10 @@ create policy gd_perfiles_dueno_actualiza
 --  producto es unico (775 de 775) y el CODIGO DE BARRAS no lo es (6
 --  codigos puestos en dos productos distintos). La llave confiable para
 --  emparejar y para detectar duplicados es el NOMBRE.
+--
+--    gd_qb_aplicar_tambien_actualiza_el_codigo
+--        FALTABA: el refresh traia nombre, categoria y precio pero NO el
+--        codigo de barras. Si Manuel corregia un codigo en QuickBooks, la
+--        app se quedaba con el viejo para siempre - y el codigo es justo
+--        lo que lee el escaner. Ahora tambien se actualiza el upc, y el
+--        ensayo reporta a cuantos les cambia.

@@ -721,6 +721,11 @@ function qbTabla(r, falta){
   }
   fila('En QuickBooks', r.en_quickbooks);
   fila('Se actualizan (ya los tienes)', r.actualizados);
+  if(r.les_cambia_el_codigo > 0)
+    fila('&nbsp;&nbsp;&middot; de esos, les corrige el c&oacute;digo de barras', r.les_cambia_el_codigo);
+  if(r.codigos_repetidos_en_quickbooks > 0)
+    fila('<b>C&oacute;digos repetidos en QuickBooks</b> (arr&eacute;glalos all&aacute;)',
+         r.codigos_repetidos_en_quickbooks, true);
   fila('Se agregan (nuevos)', r.nuevos);
   if(r.revividos > 0) fila('Se vuelven a prender (los que repusiste)', r.revividos);
   fila('<b>Se apagan</b> (ya no est&aacute;n en QuickBooks)', r.se_apagan, r.se_apagan > 0);
