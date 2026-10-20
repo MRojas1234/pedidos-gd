@@ -25,6 +25,16 @@ header{background:#1f2937;color:#fff;padding:10px 12px;position:sticky;top:0;z-i
 .sub{opacity:.6;font-weight:400;font-size:12.5px}
 .tienda{margin-top:8px;display:block;width:100%;padding:11px 12px;border:0;border-radius:8px;
         font-size:16px;background:#fff;color:#16191d}
+.sug{position:relative;z-index:30}
+.sugl{position:absolute;left:0;right:0;top:2px;background:#fff;border-radius:10px;
+      box-shadow:0 8px 24px rgba(16,24,40,.22);overflow:hidden;max-height:290px;overflow-y:auto}
+.sugi{padding:12px 13px;border-bottom:1px solid #eceef1;color:#16191d;font-size:15px;cursor:pointer}
+.sugi:last-child{border-bottom:0}
+.sugi b{display:block;font-weight:700}
+.sugi span{color:#6b7280;font-size:12.5px}
+.sugi:active{background:#f4f5f7}
+.cambiar{background:transparent;border:0;color:#fff;opacity:.75;font-size:12px;
+         text-decoration:underline;padding:4px 0 0;cursor:pointer}
 .tienda::placeholder{color:#9aa1ab}
 .tienda.fija{font-weight:700;background:#eef0f3}
 .dsd{margin-top:5px;font-size:12px;opacity:.75}
@@ -108,6 +118,7 @@ header{background:#1f2937;color:#fff;padding:10px 12px;position:sticky;top:0;z-i
     <div class="tx"><div class="brand">General Distribution</div><div class="sub">Pedidos</div></div>
   </div>
   <input class="tienda" id="tienda" placeholder="&iquest;Para cu&aacute;l tienda? (escribe el nombre)" autocomplete="off">
+  <div class="sug"><div class="sugl" id="sugl" style="display:none"></div></div>
   <div class="dsd" id="dsd" style="display:none"></div>
 </header>
 
@@ -348,6 +359,78 @@ function traeCatalogo(){
   tanda(0);
 }
 
+/* ---- escoger la tienda escribiendo el nombre ----
+   Es el camino que usa Manuel vendiendo: abre la app general, escribe
+   "Don Juan", la escoge, y a partir de ahi el pedido va amarrado a esa
+   tienda y salen SUS precios. Igual que si hubiera abierto su link. */
+var BUSCA_T = null, TIENDAS_VISTAS = {};
+
+function pintaSugerencias(lista){
+  var c = document.getElementById('sugl');
+  if(!lista || !lista.length){ c.style.display = 'none'; c.innerHTML = ''; return; }
+  var h = '', i;
+  for(i=0;i<lista.length;i++){
+    var s = lista[i];
+    TIENDAS_VISTAS[s.codigo] = s;
+    h += '<div class="sugi" data-tc="' + s.codigo + '"><b>' + s.nombre + '</b>' +
+         '<span>' + (s.ruta ? s.ruta : 'sin ruta') + '</span></div>';
+  }
+  c.innerHTML = h;
+  c.style.display = 'block';
+}
+
+function buscaTiendas(txt){
+  txt = (txt || '').trim();
+  if(txt.length < 2){ pintaSugerencias([]); return; }
+  var x = new XMLHttpRequest();
+  var e = encodeURIComponent('%' + txt + '%');
+  x.open('GET', SB_URL + '/gd_tienda_publica?select=id,codigo,nombre,ruta' +
+                '&nombre=ilike.' + e + '&order=nombre.asc&limit=8', true);
+  x.setRequestHeader('apikey', SB_KEY);
+  x.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
+  x.onreadystatechange = function(){
+    if(x.readyState !== 4) return;
+    var d = null;
+    try { d = JSON.parse(x.responseText); } catch(e2){}
+    pintaSugerencias(d || []);
+  };
+  try { x.send(null); } catch(e3){}
+}
+
+/* Deja el pedido amarrado a esa tienda y trae sus precios. */
+function eligeTienda(cod){
+  var s = TIENDAS_VISTAS[cod];
+  if(!s) return;
+  var el = document.getElementById('tienda'), m = document.getElementById('dsd');
+  TIENDA_ID = s.id;
+  CODIGO_TIENDA = s.codigo;
+  PRECIOS_TIENDA = {};
+  el.value = s.nombre;
+  el.readOnly = true;
+  el.className = 'tienda fija';
+  pintaSugerencias([]);
+  m.innerHTML = '&#10003; Pedido para <b>' + s.nombre + '</b>' +
+                '<button class="cambiar" id="cambiarT">cambiar de tienda</button>';
+  m.style.display = 'block';
+  var b = document.getElementById('cambiarT');
+  if(b) b.onclick = sueltaTienda;
+  traePreciosDeLaTienda(s.codigo);
+  render();
+  save();
+}
+
+function sueltaTienda(){
+  var el = document.getElementById('tienda'), m = document.getElementById('dsd');
+  TIENDA_ID = null; CODIGO_TIENDA = ''; PRECIOS_TIENDA = {};
+  el.readOnly = false;
+  el.className = 'tienda';
+  el.value = '';
+  el.focus();
+  m.style.display = 'none';
+  render();
+  save();
+}
+
 function traePreciosDeLaTienda(cod){
   var x = new XMLHttpRequest();
   x.open('POST', SB_URL + '/rpc/gd_precios_de_la_tienda', true);
@@ -369,8 +452,15 @@ function traePreciosDeLaTienda(cod){
     if(hubo){
       try { render(); paintBar(); } catch(e){}
       var m = document.getElementById('dsd');
-      if(m) m.innerHTML = '&#10003; Pedido para esta tienda &middot; <b>' + hubo +
-                          '</b> con su propio precio';
+      if(m){
+        var nom = document.getElementById('tienda').value || 'esta tienda';
+        m.innerHTML = '&#10003; Pedido para <b>' + nom + '</b> &middot; ' + hubo +
+                      ' con su propio precio' +
+                      '<button class="cambiar" id="cambiarT">cambiar de tienda</button>';
+        m.style.display = 'block';
+        var bb = document.getElementById('cambiarT');
+        if(bb) bb.onclick = sueltaTienda;
+      }
     }
   };
   try { x.send(JSON.stringify({p_codigo: cod})); } catch(e){}
@@ -612,6 +702,8 @@ document.addEventListener('click', function(e){
       return;
     }
     if(el.getAttribute){
+      var tc = el.getAttribute('data-tc');
+      if(tc){ eligeTienda(tc); return; }
       var pe = el.getAttribute('data-pe');
       if(pe){ abreEditor(pe); return; }
       var a = el.getAttribute('data-a'), m = el.getAttribute('data-m'), c = el.getAttribute('data-c');
@@ -621,6 +713,9 @@ document.addEventListener('click', function(e){
     }
     el = el.parentNode;
   }
+  /* tocar fuera cierra la lista de tiendas */
+  var sl = document.getElementById('sugl');
+  if(sl && sl.style.display === 'block' && e.target.id !== 'tienda') pintaSugerencias([]);
 }, false);
 
 /* onkeyup solo NO basta: se cae con pegado, autocompletado y dictado por voz. */
@@ -628,7 +723,16 @@ var qEl = document.getElementById('q');
 function onQ(){ if(q !== qEl.value){ q = qEl.value; render(); } }
 qEl.onkeyup = onQ; qEl.oninput = onQ; qEl.onchange = onQ;
 var tEl = document.getElementById('tienda');
-tEl.onkeyup = save; tEl.oninput = save; tEl.onchange = save;
+function onTienda(){
+  save();
+  if(tEl.readOnly) return;
+  if(BUSCA_T) clearTimeout(BUSCA_T);
+  var v = tEl.value;
+  BUSCA_T = setTimeout(function(){ buscaTiendas(v); }, 220);
+}
+/* onkeyup solo NO basta: se cae con pegado, autocompletado y dictado por voz. */
+tEl.onkeyup = onTienda; tEl.oninput = onTienda; tEl.onchange = onTienda;
+tEl.onfocus = function(){ if(!tEl.readOnly && tEl.value.trim().length >= 2) buscaTiendas(tEl.value); };
 var nEl = document.getElementById('nota');
 nEl.onkeyup = save; nEl.oninput = save; nEl.onchange = save;
 document.getElementById('vp').onclick = function(){ lines(); document.getElementById('sheet').className = 'sheet on'; };
