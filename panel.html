@@ -148,6 +148,11 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 .ryat{display:inline-block;background:#fef3c7;color:#92400e;border-radius:4px;
       padding:1px 5px;font-size:11px;margin-left:5px;vertical-align:middle}
 .rman{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:11px;margin:10px 0 0}
+.rlab{display:block;font-size:14px;color:#374151;margin:0 0 5px}
+.rlab b{color:#111827}
+.rman button.p{width:100%;margin-top:9px;font-size:16px;padding:12px}
+.rex{display:inline-block;background:#dcfce7;color:#166534;border-radius:4px;
+     padding:1px 5px;font-size:11px;margin-left:5px;vertical-align:middle}
 .rman input{width:100%;padding:11px;font-size:16px;border:1px solid #d5d9df;
             border-radius:8px;margin:7px 0 0}
 .rsalta{display:flex;gap:8px;margin:12px 0 0}
@@ -300,8 +305,12 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
         <p class="ayuda">Cuando QuickBooks le cambi&oacute; el nombre a un producto, el
           viejo se apag&oacute; <b>pero se qued&oacute; con su foto</b>. Esas fotos siguen
           buenas: aqu&iacute; se pasan al producto que s&iacute; se vende.<br>
-          Se ve la foto, se busca el producto y se toca. <b>Se guarda sola.</b>
-          Si no reconoces la foto, d&eacute;jala para despu&eacute;s: no se borra nada.</p>
+          Mira la foto y <b>escribe el nombre como aparece en la app</b>. El cuadro
+          ya viene con el nombre que ten&iacute;a en Shopify: corr&iacute;gelo encima
+          y dale <b>Guardar</b>.<br>
+          Si ese producto no existe todav&iacute;a, igual se guarda lo que escribiste y
+          la foto se le pone despu&eacute;s. <b>Nunca te quedas atorado</b>, y no se
+          borra nada.</p>
         <div class="msg" id="mFoto"></div>
       </div>
       <div class="tiles">
@@ -863,85 +872,144 @@ function pintaRescate(){
   }
 
   var f = RHUER[RIDX];
-  var sug = rSugiere(f.nombre);
+  /* El campo nace con el nombre de Shopify YA PUESTO, para corregirlo encima
+     en vez de escribirlo desde cero. Casi siempre se parece bastante. */
   var h = '<div class="rfoto">';
   h += '<img src="' + f.foto + '" alt="">';
   h += '<p class="rviejo">En Shopify se llamaba<br><b>' + f.nombre + '</b></p>';
-
-  if(sug){
-    h += '<div class="rsug"><p class="ayuda"><b>&iquest;Es este?</b> Lo propongo porque ' +
-         'el nombre se parece. <b>Compara con la foto antes de tocarlo.</b></p>';
-    h += '<button class="ropt" data-pick="' + sug.id + '">' + sug.nombre +
-         '<small>' + (sug.categoria || 'Sin categor&iacute;a') +
-         (sug.upc ? ' &middot; ' + sug.upc : '') + '</small></button></div>';
-  }
-
-  h += '<input class="rcual" id="rq" autocomplete="off" ' +
-       'placeholder="O busca el producto por su nombre...">';
+  h += '<div class="rman">';
+  h += '<label class="rlab" for="rnom">&iquest;C&oacute;mo se llama <b>en la app</b>?</label>';
+  h += '<input id="rnom" autocomplete="off" value="' +
+       String(f.nombre).replace(/"/g, '&quot;') + '">';
   h += '<div id="rops"></div>';
-  /* Manuel: poner el nombre como aparece en la app, por si no sale buscando. */
-  h += '<div class="rman" id="rman" style="display:none">' +
-       '<p class="ayuda" style="margin:0">Escribe el nombre <b>tal como aparece ' +
-       'en la app</b>. Queda anotado y se le pone la foto despu&eacute;s: ' +
-       't&uacute; sigue con la siguiente.</p>' +
-       '<input id="rnom" autocomplete="off" placeholder="Nombre del producto">' +
-       '<button class="mini p" id="bRGuardaNom" style="margin-top:8px">' +
-       'Dejarlo anotado</button></div>';
+  h += '<button class="mini p" id="bRGuarda">Guardar</button>';
+  h += '</div>';
   h += '<div class="rsalta">' +
-       '<button class="mini" id="bRManual">No sale: escribir el nombre</button>' +
        '<button class="mini" id="bRSalta">La veo despu&eacute;s</button>' +
        '<button class="mini" id="bRNunca">No la reconozco</button></div>';
   h += '</div>';
   $('rescate').innerHTML = h;
 
-  /* El buscador escucha los tres eventos: con onkeyup solo se cae el
-     dictado por voz y el pegado. Misma razon que en la app de pedidos. */
-  var q = $('rq');
+  /* Los tres eventos: con onkeyup solo se cae el dictado por voz y el pegado.
+     Misma razon que en la app de pedidos. */
+  var q = $('rnom');
   q.onkeyup = q.oninput = q.onchange = function(){ rBusca(q.value); };
-  $('bRManual').onclick = function(){
-    var c = $('rman');
-    c.style.display = (c.style.display === 'none') ? 'block' : 'none';
-    if(c.style.display === 'block') $('rnom').focus();
-  };
-  $('bRGuardaNom').onclick = function(){ rAnota(f); };
+  $('bRGuarda').onclick = function(){ rGuarda(f, $('rnom').value); };
   $('bRSalta').onclick = function(){ RIDX++; pintaRescate(); window.scrollTo(0,0); };
   $('bRNunca').onclick = function(){
     var s = rLeeSalt(); s[f.foto] = 1; rGuardaSalt(s);
     RIDX++; pintaRescate(); window.scrollTo(0,0);
   };
-  rAmarraPicks();
+  rBusca(f.nombre);   /* desde el arranque se ve si ese nombre ya existe */
 }
 
+/* Para comparar nombres sin que estorben acentos, mayusculas ni dobles
+   espacios. Es el mismo criterio que usa gd_norm en la base. */
+function rNorm(s){
+  s = String(s || '').toLowerCase();
+  var de = '\u00e1\u00e9\u00ed\u00f3\u00fa\u00e0\u00e8\u00ec\u00f2\u00f9' +
+           '\u00e4\u00eb\u00ef\u00f6\u00fc\u00e2\u00ea\u00ee\u00f4\u00fb\u00f1';
+  var a  = 'aeiouaeiouaeiouaeioun';
+  var r = '', i, j;
+  for(i=0;i<s.length;i++){
+    j = de.indexOf(s.charAt(i));
+    r += (j >= 0) ? a.charAt(j) : s.charAt(i);
+  }
+  return r.replace(/\s+/g, ' ').replace(/^ /, '').replace(/ $/, '');
+}
+
+/* Mientras escribe, se le van mostrando los productos que se llaman asi.
+   No es obligatorio usarlos: es para que vea que va bien encaminado. */
 function rBusca(txt){
-  txt = String(txt || '').trim().toLowerCase();
-  if(txt.length < 2){ $('rops').innerHTML = ''; return; }
-  var h = '', n = 0, i;
-  /* Se busca entre TODOS los activos, no solo los pelones: si el producto ya
-     tiene foto, igual hay que poder llegar a el y decidir si se reemplaza. */
-  for(i=0;i<RTODOS.length && n<8;i++){
-    var p = RTODOS[i];
-    if(String(p.nombre).toLowerCase().indexOf(txt) < 0) continue;
+  var n = rNorm(txt);
+  if(n.length < 3){ $('rops').innerHTML = ''; return; }
+  var h = '', c = 0, i, exacto = false;
+  for(i=0;i<RTODOS.length && c<6;i++){
+    var p = RTODOS[i], pn = rNorm(p.nombre);
+    if(pn.indexOf(n) < 0 && n.indexOf(pn) < 0) continue;
+    if(pn === n) exacto = true;
     h += '<button class="ropt" data-pick="' + p.id + '"' +
          (p.foto ? ' data-tiene="1"' : '') + '>' + p.nombre +
          (p.foto ? '<span class="ryat">ya tiene foto</span>' : '') +
+         (pn === n ? '<span class="rex">es este</span>' : '') +
          '<small>' + (p.categoria || 'Sin categor&iacute;a') +
          (p.upc ? ' &middot; ' + p.upc : '') + '</small></button>';
-    n++;
+    c++;
   }
-  $('rops').innerHTML = n ? h :
-    '<p class="ayuda" style="margin:9px 0 0">Ning&uacute;n producto activo se llama ' +
-    'as&iacute;. Rev&iacute;salo en la app, o usa <b>No sale: escribir el nombre</b> ' +
-    'y d&eacute;jalo anotado.</p>';
+  if(c && !exacto){
+    h = '<p class="ayuda" style="margin:9px 0 2px">Se parecen a lo que escribiste. ' +
+        'T&oacute;calo si es uno de estos:</p>' + h;
+  }
+  $('rops').innerHTML = h;
   rAmarraPicks();
 }
 
-/* Deja el nombre escrito para resolverlo despues, sin frenar el trabajo. */
-function rAnota(f){
-  var inp = $('rnom');
-  var nom = String(inp.value || '').trim();
-  if(nom.length < 3){ rAviso('Escribe el nombre completo del producto.', false); return; }
-  var b = $('bRGuardaNom');
-  b.disabled = true; b.textContent = 'Guardando\u2026';
+/* El boton Guardar. El match se intenta solo:
+     - nombre exacto de un activo SIN foto -> se la pone
+     - nombre exacto de uno QUE YA TIENE   -> pregunta antes de pisarla
+     - no existe ninguno asi                -> queda anotado para despues
+   En los tres casos avanza: nunca se queda atorado. */
+function rGuarda(f, texto){
+  var n = rNorm(texto);
+  if(n.length < 3){ rAviso('Escribe el nombre del producto.', false); return; }
+
+  var halla = [], i;
+  for(i=0;i<RTODOS.length;i++) if(rNorm(RTODOS[i].nombre) === n) halla.push(RTODOS[i]);
+
+  if(halla.length === 1){
+    var p = halla[0];
+    if(p.foto){
+      /* No se pisa una foto buena sin preguntar. Sin confirm(): en la
+         tableta vieja esta bloqueado y la app se queda muda. */
+      $('rops').innerHTML =
+        '<p class="ayuda" style="margin:9px 0 2px"><b>' + p.nombre + '</b> ya tiene ' +
+        'una foto. &iquest;Se la cambias por esta?</p>' +
+        '<button class="ropt conf" data-pick="' + p.id + '" data-ok="1">' +
+        'S&iacute;, ponle esta foto<small>La de antes se pierde.</small></button>';
+      rAmarraPicks();
+      return;
+    }
+    rAsignaPorId(p.id, f);
+    return;
+  }
+
+  if(halla.length > 1){
+    rAviso('Hay ' + halla.length + ' productos con ese mismo nombre. ' +
+           'T&oacute;calo en la lista para escoger.', false);
+    rBusca(texto);
+    return;
+  }
+
+  /* No existe un producto que se llame asi: queda anotado y el sigue. */
+  rAnota(f, String(texto).replace(/^\s+|\s+$/g, ''));
+}
+
+/* Le pone la foto al producto y avanza. */
+function rAsignaPorId(prodId, f){
+  var i;
+  guardaFoto(prodId, f.foto,
+    function(){
+      var nom = '';
+      for(i=0;i<RTODOS.length;i++){
+        if(RTODOS[i].id === prodId){ RTODOS[i].foto = f.foto; nom = RTODOS[i].nombre; break; }
+      }
+      for(i=0;i<RSINF.length;i++){
+        if(RSINF[i].id === prodId){ RSINF.splice(i,1); break; }
+      }
+      RGANA++;
+      $('f1').textContent = String(parseInt($('f1').textContent || '0', 10) + 1);
+      $('f3').textContent = String(RSINF.length);
+      rAviso('Listo: la foto qued&oacute; en <b>' + nom + '</b>. Van ' + RGANA + '.', true);
+      RIDX++; pintaRescate(); window.scrollTo(0,0);
+    },
+    function(st){ rAviso('No se pudo guardar (' + st + '). Intenta otra vez.', false); });
+}
+
+/* Cuando el nombre escrito no existe en el catalogo. No se frena el trabajo:
+   se anota y se sigue, y el match se hace despues con calma. */
+function rAnota(f, nom){
+  var b = $('bRGuarda');
+  if(b){ b.disabled = true; b.textContent = 'Guardando\u2026'; }
   req('POST', SB + '/rest/v1/gd_foto_pendiente',
       /* miId() devuelve '' si el token viene raro, y '' NO es un id valido:
          la base rechazaria el guardado y se perderia lo que escribio. */
@@ -949,11 +1017,12 @@ function rAnota(f){
        quien: miId() || null},
       true,
       function(){
-        rAviso('Anotado: "' + nom + '". Se le pone la foto despu&eacute;s.', true);
+        rAviso('Anotado como <b>' + nom + '</b>. No hay un producto que se llame ' +
+               'as&iacute; todav&iacute;a, as&iacute; que la foto se le pone despu&eacute;s.', true);
         RIDX++; pintaRescate(); window.scrollTo(0,0);
       },
       function(st){
-        b.disabled = false; b.textContent = 'Dejarlo anotado';
+        if(b){ b.disabled = false; b.textContent = 'Guardar'; }
         rAviso('No se pudo anotar (' + st + '). Intenta otra vez.', false);
       });
 }
@@ -980,33 +1049,8 @@ function rAmarraPicks(){
 function rAsigna(prodId, boton){
   var f = RHUER[RIDX];
   if(!f || !prodId) return;
-  boton.disabled = true;
-  var textoOriginal = boton.innerHTML;
-  boton.innerHTML = 'Guardando&hellip;';
-  guardaFoto(prodId, f.foto,
-    function(){
-      /* se saca de la lista de destinos para que no se repita */
-      var i;
-      for(i=0;i<RSINF.length;i++){
-        if(RSINF[i].id === prodId){ RSINF.splice(i,1); break; }
-      }
-      /* En la lista de busqueda ya no es un pelon: queda marcado. */
-      for(i=0;i<RTODOS.length;i++){
-        if(RTODOS[i].id === prodId){ RTODOS[i].foto = f.foto; break; }
-      }
-      RGANA++;
-      $('f1').textContent = String(parseInt($('f1').textContent || '0', 10) + 1);
-      $('f3').textContent = String(RSINF.length);
-      rAviso('Foto guardada. Van ' + RGANA + ' en esta vuelta.', true);
-      RIDX++;
-      pintaRescate();
-      window.scrollTo(0,0);
-    },
-    function(st){
-      boton.disabled = false;
-      boton.innerHTML = textoOriginal;
-      rAviso('No se pudo guardar (' + st + '). Intenta otra vez.', false);
-    });
+  if(boton){ boton.disabled = true; boton.innerHTML = 'Guardando\u2026'; }
+  rAsignaPorId(prodId, f);
 }
 
 function qbApiFalla(st, d){
