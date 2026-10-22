@@ -131,6 +131,21 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
 .foto{position:absolute;left:0;top:0;width:52px;height:52px;opacity:0;cursor:pointer}
 .sinfoto{width:52px;height:52px;border-radius:6px;background:#f4f5f7;border:1px dashed #c3c9d2;
          display:block;text-align:center;line-height:52px;font-size:20px;color:#8b929c}
+.rfoto{background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:14px;margin:11px 0}
+.rfoto img{display:block;width:100%;max-width:280px;height:auto;margin:0 auto 10px;
+           border-radius:8px;background:#f4f5f7}
+.rviejo{font-size:13px;color:#6b7280;text-align:center;margin:0 0 4px}
+.rviejo b{color:#1f2937;font-size:15px}
+.rsug{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px;margin:10px 0 0}
+.rsug .ayuda{margin:0 0 7px}
+.rcual{width:100%;padding:12px;font-size:16px;border:1px solid #d5d9df;
+        border-radius:8px;margin:11px 0 0}
+.ropt{display:block;width:100%;text-align:left;background:#fff;border:1px solid #d5d9df;
+      border-radius:8px;padding:11px;margin:7px 0 0;font-size:15px;cursor:pointer}
+.ropt:hover{background:#f0f9ff;border-color:#60a5fa}
+.ropt small{display:block;color:#6b7280;font-size:12px;margin-top:2px}
+.rsalta{display:flex;gap:8px;margin:12px 0 0}
+.rsalta button{flex:1}
 .camara{width:52px;height:52px;border-radius:6px;background:#1f2937;color:#fff;border:0;
         font-size:19px;line-height:52px;padding:0;display:block}
 .subiendo{opacity:.45}
@@ -191,6 +206,7 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
     <button class="tab on" data-sec="pedidos">Pedidos</button>
     <button class="tab" data-sec="tiendas">Tiendas</button>
     <button class="tab" data-sec="productos">Productos</button>
+    <button class="tab" data-sec="fotos">Fotos</button>
     <button class="tab" data-sec="equipo" id="tabEquipo" style="display:none">Equipo</button>
     <button class="tab" data-sec="cuenta">Mi cuenta</button>
   </div>
@@ -272,6 +288,23 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
       <div id="listaProd"><div class="cargando">Cargando&hellip;</div></div>
     </div>
 
+    <div class="panel-sec" id="sec-fotos">
+      <div class="card">
+        <h3>Rescatar las fotos que se quedaron colgadas</h3>
+        <p class="ayuda">Cuando QuickBooks le cambi&oacute; el nombre a un producto, el
+          viejo se apag&oacute; <b>pero se qued&oacute; con su foto</b>. Esas fotos siguen
+          buenas: aqu&iacute; se pasan al producto que s&iacute; se vende.<br>
+          Se ve la foto, se busca el producto y se toca. <b>Se guarda sola.</b>
+          Si no reconoces la foto, d&eacute;jala para despu&eacute;s: no se borra nada.</p>
+        <div class="msg" id="mFoto"></div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><b id="f1">0</b><span>ya rescatadas</span></div>
+        <div class="tile"><b id="f2">0</b><span>por revisar</span></div>
+        <div class="tile"><b id="f3">0</b><span>sin foto todav&iacute;a</span></div>
+      </div>
+      <div id="rescate"><div class="cargando">Cargando&hellip;</div></div>
+    </div>
     <div class="panel-sec" id="sec-equipo">
       <h2>Dar de alta a alguien</h2>
       <div class="card">
@@ -718,6 +751,191 @@ function amarraCamaras(){
    El refresh lo hace la misma gd_qb_aplicar que el camino del archivo:
    una sola logica de sincronizacion, ya probada. */
 var QBAPI = SB + '/functions/v1/gd-quickbooks';
+
+/* ======================================================================
+   RESCATAR FOTOS
+   Las fotos colgadas de productos apagados se pasan a los activos que no
+   tienen. Nada se borra: el apagado conserva su foto, el activo gana una.
+   ====================================================================== */
+var RHUER = [];   /* fotos por revisar */
+var RSINF = [];   /* productos activos sin foto */
+var RIDX  = 0;    /* en cual vamos */
+var RGANA = 0;    /* cuantas se han rescatado en esta sesion */
+
+/* Las que alguien dejo para despues. Se guardan en este telefono/compu
+   nada mas: si entra otra persona, las vuelve a ver. A proposito. */
+function rLeeSalt(){
+  try { return JSON.parse(localStorage.getItem('gdp_fotos_salt') || '{}') || {}; }
+  catch(e){ return {}; }
+}
+function rGuardaSalt(o){
+  try { localStorage.setItem('gdp_fotos_salt', JSON.stringify(o)); } catch(e){}
+}
+
+function rAviso(m, bien){ aviso('mFoto', m, bien); }
+
+function cargaRescate(){
+  $('rescate').innerHTML = '<div class="cargando">Cargando&hellip;</div>';
+  /* 1. los activos que no tienen foto: son el destino */
+  req('GET', SB + '/rest/v1/gd_productos?select=id,nombre,categoria,upc' +
+      '&activo=eq.true&foto=is.null&order=nombre.asc', null, true,
+    function(sinf){
+      RSINF = sinf || [];
+      /* 2. las fotos que ya se usaron en algun activo: esas ya estan hechas */
+      req('GET', SB + '/rest/v1/gd_productos?select=foto' +
+          '&activo=eq.true&foto=not.is.null', null, true,
+        function(usadas){
+          var ya = {}, i;
+          for(i=0;i<(usadas||[]).length;i++) ya[usadas[i].foto] = 1;
+          /* 3. las fotos colgadas de apagados */
+          req('GET', SB + '/rest/v1/gd_productos?select=id,nombre,foto' +
+              '&activo=eq.false&foto=not.is.null&order=nombre.asc', null, true,
+            function(apag){
+              var salt = rLeeSalt();
+              RHUER = [];
+              for(i=0;i<(apag||[]).length;i++){
+                var a = apag[i];
+                if(ya[a.foto]) continue;       /* ya se rescato */
+                if(salt[a.foto]) continue;     /* alguien la dejo para despues */
+                RHUER.push(a);
+              }
+              RIDX = 0;
+              $('f1').textContent = String((usadas||[]).length);
+              $('f3').textContent = String(RSINF.length);
+              pintaRescate();
+            },
+            function(){ $('rescate').innerHTML =
+              '<div class="vacio">No se pudieron cargar las fotos.</div>'; });
+        },
+        function(){ $('rescate').innerHTML =
+          '<div class="vacio">No se pudieron cargar las fotos.</div>'; });
+    },
+    function(){ $('rescate').innerHTML =
+      '<div class="vacio">No se pudieron cargar los productos.</div>'; });
+}
+
+/* Cuantas palabras de peso comparten dos nombres. Sirve para sugerir, no
+   para decidir: la decision siempre la toma la persona. */
+function rParecido(a, b){
+  var pa = String(a||'').toLowerCase().replace(/[^a-z0-9ñ ]/g,' ').split(/\s+/);
+  var pb = String(b||'').toLowerCase().replace(/[^a-z0-9ñ ]/g,' ').split(/\s+/);
+  var en = {}, i, n = 0;
+  for(i=0;i<pb.length;i++) if(pb[i].length > 2) en[pb[i]] = 1;
+  for(i=0;i<pa.length;i++) if(pa[i].length > 2 && en[pa[i]]){ n++; en[pa[i]] = 0; }
+  return n;
+}
+
+function rSugiere(nombreViejo){
+  var mejor = null, punt = 0, i;
+  for(i=0;i<RSINF.length;i++){
+    var p = rParecido(nombreViejo, RSINF[i].nombre);
+    if(p > punt){ punt = p; mejor = RSINF[i]; }
+  }
+  return punt >= 2 ? mejor : null;   /* con una sola palabra en comun, no vale */
+}
+
+function pintaRescate(){
+  $('f2').textContent = String(Math.max(0, RHUER.length - RIDX));
+  if(RIDX >= RHUER.length){
+    $('rescate').innerHTML = '<div class="card" style="text-align:center">' +
+      '<h3>' + (RGANA > 0 ? 'Listo por ahora' : 'Nada que rescatar') + '</h3>' +
+      '<p class="ayuda">' +
+      (RGANA > 0 ? 'Se rescataron <b>' + RGANA + '</b> fotos en esta vuelta. ' : '') +
+      'Ya no hay fotos colgadas por revisar.<br>' +
+      'Las que dejaste para despu&eacute;s vuelven a salir si tocas el bot&oacute;n de abajo.' +
+      '</p><button class="mini" id="bRVuelve">Ver otra vez las que dej&eacute; para despu&eacute;s</button></div>';
+    var bv = $('bRVuelve');
+    if(bv) bv.onclick = function(){ rGuardaSalt({}); RGANA = 0; cargaRescate(); };
+    return;
+  }
+
+  var f = RHUER[RIDX];
+  var sug = rSugiere(f.nombre);
+  var h = '<div class="rfoto">';
+  h += '<img src="' + f.foto + '" alt="">';
+  h += '<p class="rviejo">En Shopify se llamaba<br><b>' + f.nombre + '</b></p>';
+
+  if(sug){
+    h += '<div class="rsug"><p class="ayuda"><b>&iquest;Es este?</b> Lo propongo porque ' +
+         'el nombre se parece. <b>Compara con la foto antes de tocarlo.</b></p>';
+    h += '<button class="ropt" data-pick="' + sug.id + '">' + sug.nombre +
+         '<small>' + (sug.categoria || 'Sin categor&iacute;a') +
+         (sug.upc ? ' &middot; ' + sug.upc : '') + '</small></button></div>';
+  }
+
+  h += '<input class="rcual" id="rq" autocomplete="off" ' +
+       'placeholder="O busca el producto por su nombre...">';
+  h += '<div id="rops"></div>';
+  h += '<div class="rsalta">' +
+       '<button class="mini" id="bRSalta">La veo despu&eacute;s</button>' +
+       '<button class="mini" id="bRNunca">No la reconozco</button></div>';
+  h += '</div>';
+  $('rescate').innerHTML = h;
+
+  /* El buscador escucha los tres eventos: con onkeyup solo se cae el
+     dictado por voz y el pegado. Misma razon que en la app de pedidos. */
+  var q = $('rq');
+  q.onkeyup = q.oninput = q.onchange = function(){ rBusca(q.value); };
+  $('bRSalta').onclick = function(){ RIDX++; pintaRescate(); window.scrollTo(0,0); };
+  $('bRNunca').onclick = function(){
+    var s = rLeeSalt(); s[f.foto] = 1; rGuardaSalt(s);
+    RIDX++; pintaRescate(); window.scrollTo(0,0);
+  };
+  rAmarraPicks();
+}
+
+function rBusca(txt){
+  txt = String(txt || '').trim().toLowerCase();
+  if(txt.length < 2){ $('rops').innerHTML = ''; return; }
+  var h = '', n = 0, i;
+  for(i=0;i<RSINF.length && n<8;i++){
+    var p = RSINF[i];
+    if(String(p.nombre).toLowerCase().indexOf(txt) < 0) continue;
+    h += '<button class="ropt" data-pick="' + p.id + '">' + p.nombre +
+         '<small>' + (p.categoria || 'Sin categor&iacute;a') +
+         (p.upc ? ' &middot; ' + p.upc : '') + '</small></button>';
+    n++;
+  }
+  $('rops').innerHTML = n ? h :
+    '<p class="ayuda" style="margin:9px 0 0">Nada con ese nombre entre los que ' +
+    'les falta foto. Puede que ese producto ya tenga una.</p>';
+  rAmarraPicks();
+}
+
+function rAmarraPicks(){
+  var bs = document.querySelectorAll('#rescate .ropt'), i;
+  for(i=0;i<bs.length;i++){
+    bs[i].onclick = function(){ rAsigna(this.getAttribute('data-pick'), this); };
+  }
+}
+
+function rAsigna(prodId, boton){
+  var f = RHUER[RIDX];
+  if(!f || !prodId) return;
+  boton.disabled = true;
+  var textoOriginal = boton.innerHTML;
+  boton.innerHTML = 'Guardando&hellip;';
+  guardaFoto(prodId, f.foto,
+    function(){
+      /* se saca de la lista de destinos para que no se repita */
+      var i;
+      for(i=0;i<RSINF.length;i++){
+        if(RSINF[i].id === prodId){ RSINF.splice(i,1); break; }
+      }
+      RGANA++;
+      $('f1').textContent = String(parseInt($('f1').textContent || '0', 10) + 1);
+      $('f3').textContent = String(RSINF.length);
+      rAviso('Foto guardada. Van ' + RGANA + ' en esta vuelta.', true);
+      RIDX++;
+      pintaRescate();
+      window.scrollTo(0,0);
+    },
+    function(st){
+      boton.disabled = false;
+      boton.innerHTML = textoOriginal;
+      rAviso('No se pudo guardar (' + st + '). Intenta otra vez.', false);
+    });
+}
 
 function qbApiFalla(st, d){
   if(st === 401 && !(d && d.error)){ refresca(qbApiEstado, salir); return; }
@@ -1316,6 +1534,7 @@ document.addEventListener('click', function(e){
         if(sec === 'equipo')    cargaEquipo();
         if(sec === 'tiendas')   cargaTiendas();
         if(sec === 'productos'){ pchips(); cargaProductos(); }
+        if(sec === 'fotos')     cargaRescate();
         window.scrollTo(0,0);
         return;
       }
