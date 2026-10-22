@@ -144,6 +144,12 @@ h2{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;
       border-radius:8px;padding:11px;margin:7px 0 0;font-size:15px;cursor:pointer}
 .ropt:hover{background:#f0f9ff;border-color:#60a5fa}
 .ropt small{display:block;color:#6b7280;font-size:12px;margin-top:2px}
+.ropt.conf{background:#fffbeb;border-color:#fcd34d}
+.ryat{display:inline-block;background:#fef3c7;color:#92400e;border-radius:4px;
+      padding:1px 5px;font-size:11px;margin-left:5px;vertical-align:middle}
+.rman{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:11px;margin:10px 0 0}
+.rman input{width:100%;padding:11px;font-size:16px;border:1px solid #d5d9df;
+            border-radius:8px;margin:7px 0 0}
 .rsalta{display:flex;gap:8px;margin:12px 0 0}
 .rsalta button{flex:1}
 .camara{width:52px;height:52px;border-radius:6px;background:#1f2937;color:#fff;border:0;
@@ -758,7 +764,11 @@ var QBAPI = SB + '/functions/v1/gd-quickbooks';
    tienen. Nada se borra: el apagado conserva su foto, el activo gana una.
    ====================================================================== */
 var RHUER = [];   /* fotos por revisar */
-var RSINF = [];   /* productos activos sin foto */
+var RSINF = [];   /* productos activos sin foto: para sugerir y contar */
+var RTODOS = [];  /* LOS 775 activos: para buscar. Manuel pidio poder poner
+                     el nombre como aparece en la app, y ese producto puede
+                     tener foto ya. Si solo buscara entre los pelones, se
+                     quedaria atorado sin entender por que. */
 var RIDX  = 0;    /* en cual vamos */
 var RGANA = 0;    /* cuantas se han rescatado en esta sesion */
 
@@ -777,10 +787,13 @@ function rAviso(m, bien){ aviso('mFoto', m, bien); }
 function cargaRescate(){
   $('rescate').innerHTML = '<div class="cargando">Cargando&hellip;</div>';
   /* 1. los activos que no tienen foto: son el destino */
-  req('GET', SB + '/rest/v1/gd_productos?select=id,nombre,categoria,upc' +
-      '&activo=eq.true&foto=is.null&order=nombre.asc', null, true,
-    function(sinf){
-      RSINF = sinf || [];
+  req('GET', SB + '/rest/v1/gd_productos?select=id,nombre,categoria,upc,foto' +
+      '&activo=eq.true&order=nombre.asc', null, true,
+    function(todos){
+      RTODOS = todos || [];
+      RSINF = [];
+      var k;
+      for(k=0;k<RTODOS.length;k++) if(!RTODOS[k].foto) RSINF.push(RTODOS[k]);
       /* 2. las fotos que ya se usaron en algun activo: esas ya estan hechas */
       req('GET', SB + '/rest/v1/gd_productos?select=foto' +
           '&activo=eq.true&foto=not.is.null', null, true,
@@ -866,7 +879,16 @@ function pintaRescate(){
   h += '<input class="rcual" id="rq" autocomplete="off" ' +
        'placeholder="O busca el producto por su nombre...">';
   h += '<div id="rops"></div>';
+  /* Manuel: poner el nombre como aparece en la app, por si no sale buscando. */
+  h += '<div class="rman" id="rman" style="display:none">' +
+       '<p class="ayuda" style="margin:0">Escribe el nombre <b>tal como aparece ' +
+       'en la app</b>. Queda anotado y se le pone la foto despu&eacute;s: ' +
+       't&uacute; sigue con la siguiente.</p>' +
+       '<input id="rnom" autocomplete="off" placeholder="Nombre del producto">' +
+       '<button class="mini p" id="bRGuardaNom" style="margin-top:8px">' +
+       'Dejarlo anotado</button></div>';
   h += '<div class="rsalta">' +
+       '<button class="mini" id="bRManual">No sale: escribir el nombre</button>' +
        '<button class="mini" id="bRSalta">La veo despu&eacute;s</button>' +
        '<button class="mini" id="bRNunca">No la reconozco</button></div>';
   h += '</div>';
@@ -876,6 +898,12 @@ function pintaRescate(){
      dictado por voz y el pegado. Misma razon que en la app de pedidos. */
   var q = $('rq');
   q.onkeyup = q.oninput = q.onchange = function(){ rBusca(q.value); };
+  $('bRManual').onclick = function(){
+    var c = $('rman');
+    c.style.display = (c.style.display === 'none') ? 'block' : 'none';
+    if(c.style.display === 'block') $('rnom').focus();
+  };
+  $('bRGuardaNom').onclick = function(){ rAnota(f); };
   $('bRSalta').onclick = function(){ RIDX++; pintaRescate(); window.scrollTo(0,0); };
   $('bRNunca').onclick = function(){
     var s = rLeeSalt(); s[f.foto] = 1; rGuardaSalt(s);
@@ -888,24 +916,64 @@ function rBusca(txt){
   txt = String(txt || '').trim().toLowerCase();
   if(txt.length < 2){ $('rops').innerHTML = ''; return; }
   var h = '', n = 0, i;
-  for(i=0;i<RSINF.length && n<8;i++){
-    var p = RSINF[i];
+  /* Se busca entre TODOS los activos, no solo los pelones: si el producto ya
+     tiene foto, igual hay que poder llegar a el y decidir si se reemplaza. */
+  for(i=0;i<RTODOS.length && n<8;i++){
+    var p = RTODOS[i];
     if(String(p.nombre).toLowerCase().indexOf(txt) < 0) continue;
-    h += '<button class="ropt" data-pick="' + p.id + '">' + p.nombre +
+    h += '<button class="ropt" data-pick="' + p.id + '"' +
+         (p.foto ? ' data-tiene="1"' : '') + '>' + p.nombre +
+         (p.foto ? '<span class="ryat">ya tiene foto</span>' : '') +
          '<small>' + (p.categoria || 'Sin categor&iacute;a') +
          (p.upc ? ' &middot; ' + p.upc : '') + '</small></button>';
     n++;
   }
   $('rops').innerHTML = n ? h :
-    '<p class="ayuda" style="margin:9px 0 0">Nada con ese nombre entre los que ' +
-    'les falta foto. Puede que ese producto ya tenga una.</p>';
+    '<p class="ayuda" style="margin:9px 0 0">Ning&uacute;n producto activo se llama ' +
+    'as&iacute;. Rev&iacute;salo en la app, o usa <b>No sale: escribir el nombre</b> ' +
+    'y d&eacute;jalo anotado.</p>';
   rAmarraPicks();
+}
+
+/* Deja el nombre escrito para resolverlo despues, sin frenar el trabajo. */
+function rAnota(f){
+  var inp = $('rnom');
+  var nom = String(inp.value || '').trim();
+  if(nom.length < 3){ rAviso('Escribe el nombre completo del producto.', false); return; }
+  var b = $('bRGuardaNom');
+  b.disabled = true; b.textContent = 'Guardando\u2026';
+  req('POST', SB + '/rest/v1/gd_foto_pendiente',
+      /* miId() devuelve '' si el token viene raro, y '' NO es un id valido:
+         la base rechazaria el guardado y se perderia lo que escribio. */
+      {foto: f.foto, nombre_viejo: f.nombre, nombre_escrito: nom,
+       quien: miId() || null},
+      true,
+      function(){
+        rAviso('Anotado: "' + nom + '". Se le pone la foto despu&eacute;s.', true);
+        RIDX++; pintaRescate(); window.scrollTo(0,0);
+      },
+      function(st){
+        b.disabled = false; b.textContent = 'Dejarlo anotado';
+        rAviso('No se pudo anotar (' + st + '). Intenta otra vez.', false);
+      });
 }
 
 function rAmarraPicks(){
   var bs = document.querySelectorAll('#rescate .ropt'), i;
   for(i=0;i<bs.length;i++){
-    bs[i].onclick = function(){ rAsigna(this.getAttribute('data-pick'), this); };
+    bs[i].onclick = function(){
+      /* Si ese producto YA tiene foto, no se pisa de un toque: se pregunta.
+         Nada de confirm(): en la tableta vieja esta bloqueado. */
+      if(this.getAttribute('data-tiene') === '1' && this.getAttribute('data-ok') !== '1'){
+        this.setAttribute('data-ok', '1');
+        this.className = 'ropt conf';
+        this.innerHTML = '<b>&iquest;Cambiarle la foto que ya tiene?</b>' +
+                         '<small>Toca otra vez para reemplazarla. ' +
+                         'La de antes se pierde.</small>';
+        return;
+      }
+      rAsigna(this.getAttribute('data-pick'), this);
+    };
   }
 }
 
@@ -921,6 +989,10 @@ function rAsigna(prodId, boton){
       var i;
       for(i=0;i<RSINF.length;i++){
         if(RSINF[i].id === prodId){ RSINF.splice(i,1); break; }
+      }
+      /* En la lista de busqueda ya no es un pelon: queda marcado. */
+      for(i=0;i<RTODOS.length;i++){
+        if(RTODOS[i].id === prodId){ RTODOS[i].foto = f.foto; break; }
       }
       RGANA++;
       $('f1').textContent = String(parseInt($('f1').textContent || '0', 10) + 1);
