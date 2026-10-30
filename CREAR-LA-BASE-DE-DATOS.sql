@@ -912,3 +912,50 @@ grant execute on function public.gd_tienda_por_codigo(text) to anon, authenticat
 --    El equipo la sigue leyendo; el panel usa gd_tiendas y no se entera.
 revoke select on public.gd_tienda_publica from anon;
 grant  select on public.gd_tienda_publica to authenticated;
+
+-- --------------------------------------------------------------------------
+--  La otra mitad de lo de arriba: las vistas tambien se podian ESCRIBIR
+-- --------------------------------------------------------------------------
+-- 30 de octubre de 2026.
+--
+-- El arreglo de arriba tapo el LEER de gd_tienda_publica y dejo el ESCRIBIR.
+-- Es facil que pase, porque los dos se ven igual y uno nada mas piensa en el
+-- que se le fugo.
+--
+-- Las dos vistas corren con security_invoker = false, que es correcto y es
+-- lo que hace que el tendero vea el catalogo sin existencia ni costos. Pero
+-- una vista asi NO TIENE RLS que la respalde: los permisos que se le dan son
+-- su unico candado. Y a anon y a authenticated se les habian quedado los
+-- siete permisos, que es lo que Supabase le pone por omision a una vista
+-- nueva.
+--
+-- Probado como anon, sin cuenta, en una transaccion que se deshizo sola: la
+-- base acepto 'delete from gd_catalogo' y 'update gd_catalogo set precio=0'.
+-- Cualquiera con la llave publica -que vive dentro del HTML de la tienda, por
+-- definicion- podia reescribir o vaciar los precios de los 775 renglones.
+--
+-- LO QUE SE QUEDA COMO ESTABA, a proposito:
+--   * anon SIGUE leyendo gd_catalogo. Es la tienda. index.html le hace GET
+--     sin sesion a proposito; quitarlo la tumba.
+--   * anon SIGUE sin leer gd_tienda_publica, como lo dejo el arreglo de
+--     arriba.
+--   * Las tablas gd_ no se tocan. Todas tienen RLS exigiendo perfil activo,
+--     y los dos permisos de anon que existen -insertar en gd_pedidos y
+--     gd_pedido_lineas- son deliberados: asi un cliente levanta un pedido
+--     sin tener cuenta.
+--
+-- Comprobado antes de aplicarlo: ninguna pantalla escribe a estas vistas.
+-- index.html y panel.html solo tocan gd_productos, gd_tiendas, gd_perfiles,
+-- gd_pedidos, gd_foto_pendiente y dos funciones.
+--
+-- Comprobado despues, desde internet con la llave publica: leer el catalogo
+-- sigue dando 200 con sus 775 productos, y borrar, escribir e insertar dan
+-- 401. Las dos funciones de la tienda siguen ejecutables por anon.
+--
+-- REGLA PARA LA PROXIMA VISTA QUE SE CREE AQUI:
+-- una vista sin security_invoker solo debe tener 'select'. Ponle el revoke
+-- en el mismo paso en que la creas, no como tarea aparte, porque la tarea
+-- aparte es la que se olvida.
+
+revoke insert, update, delete, truncate on public.gd_catalogo       from anon, authenticated;
+revoke insert, update, delete, truncate on public.gd_tienda_publica from anon, authenticated;
